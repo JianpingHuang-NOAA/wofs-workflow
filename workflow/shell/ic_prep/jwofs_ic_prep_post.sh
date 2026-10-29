@@ -56,9 +56,9 @@ export cyc="${TARGET_TIME:8:2}"
 
 
 # NCO-style COM output directory on scratch3
-export COMROOT="${DATAROOT}/com/wofs/v1.0"
-export COMOUT="${COMROOT}/wofs.${PDY}/${cyc}"
-export INPUTDIR="${COMOUT}/INPUT"
+export COMROOT="${COMROOT:-${DATAROOT}/com/wofs/v1.0}"
+export COMOUT="${COMOUT:-${COMROOT}/wofs.${PDY}/${cyc}}"
+export INPUTDIR="${INPUTDIR:-${COMOUT}/INPUT}"
 
 mkdir -p "${INPUTDIR}"
 
