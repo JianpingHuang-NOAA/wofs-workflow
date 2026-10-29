@@ -1,7 +1,7 @@
 # WoFS Workflow
 
 Warn-on-Forecast System (WoFS) v1.0 workflow for
-NOAA/NCEP/Environmental Modeling Center (EMC).
+NOAA/NWS/Office of Modeling and Development (OMD).
 
 ## Reference Workflow
 
