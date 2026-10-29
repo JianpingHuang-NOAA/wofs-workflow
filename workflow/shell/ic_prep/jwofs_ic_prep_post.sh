@@ -10,23 +10,27 @@
 #SBATCH -e /scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_IC/logs/wofs_ic_post_%A_%a.err
 
 set -euo pipefail
-export HOMEwofs=/scratch4/NCEPDEV/fv3-cam/Jianping.Huang/wofsv1.0
-export DATAROOT=/scratch3/NCEPDEV/stmp/Jianping.Huang
-export PARMWOfS=${HOMEwofs}/parm
 
-module use ${HOMEwofs}/modulefiles
+# WoFS workflow repository
+export HOMEwofs="${HOMEwofs:-/scratch3/NCEPDEV/wofs/Jianping.Huang/wofs-workflow}"
+export DATAROOT="${DATAROOT:-/scratch3/NCEPDEV/stmp/Jianping.Huang}"
+
+# IC_PREP runtime configuration
+export PARMWOfS="${PARMWOfS:-${HOMEwofs}/parm}"
+
+# Temporary external dependencies during migration
+export UPP_LEGACY_ROOT="${UPP_LEGACY_ROOT:-/scratch4/NCEPDEV/fv3-cam/Jianping.Huang/wofsv1.0}"
+export EXE_ROOT="${EXE_ROOT:-${UPP_LEGACY_ROOT}/exec}"
+export UPP_FIX_DIR="${UPP_FIX_DIR:-${UPP_LEGACY_ROOT}/fix/UPP}"
+export STATICWRF_DIR="${STATICWRF_DIR:-${UPP_LEGACY_ROOT}/fix/WRF}"
+
+# Ursa environment
+module use "${HOMEwofs}/modulefiles"
 module load ursa_intel
-
-#module load ncl
-
-export HOMEwofs=/scratch4/NCEPDEV/fv3-cam/Jianping.Huang/wofsv1.0
-export DATAROOT=/scratch3/NCEPDEV/stmp/Jianping.Huang
 
 : "${INIT_TIME:?INIT_TIME must be defined}"
 : "${CRTM:?CRTM must be defined}"
 
-export PDY="${INIT_TIME:0:8}"
-export cyc="${INIT_TIME:8:2}"
 export envir=test
 
 export IC_PREP_STAGE=POST
@@ -43,9 +47,6 @@ export DATAHOME="${DATAROOT}/WoF_IC/hrrrdas/${INIT_TIME}"
 export WRFOUT_SMALL_DIR="${DATAHOME}"
 export WRFINPUT_STATIC_DIR="${DATAHOME}"
 
-
-# HRRRDAS input cycle
-export INIT_TIME="${INIT_TIME:-2026102814}"
 
 # Output cycle for the target WoFS run
 TARGET_TIME=$(date -u -d "${INIT_TIME:0:8} ${INIT_TIME:8:2}:00:00 UTC + 1 hour" +%Y%m%d%H)
