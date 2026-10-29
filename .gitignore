@@ -1,0 +1,36 @@
+# Compiled executables and objects
+*.o
+*.mod
+*.a
+*.so
+*.exe
+
+# Logs
+*.log
+*.out
+*.err
+
+# Model data
+*.grib2
+*.grb2
+*.nc
+wrfinput_*
+wrfbdy_*
+wrfout_*
+met_em.*
+geo_em.*
+
+# Runtime directories
+com/
+tmp/
+logs/
+
+# Local source checkouts
+sorc/WPS/
+sorc/WRF/
+sorc/GSI/
+
+# Credentials
+.env
+*.pem
+*.key

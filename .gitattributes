@@ -1,0 +1,2 @@
+sorc/build_configs/ursa/configure.wps -whitespace
+sorc/build_configs/ursa/module_list -whitespace
