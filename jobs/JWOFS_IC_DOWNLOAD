@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-export HOMEwofs=/scratch4/NCEPDEV/fv3-cam/Jianping.Huang/wofsv1.0
+export HOMEwofs="${HOMEwofs:-/scratch3/NCEPDEV/wofs/Jianping.Huang/wofs-workflow}"
 export DATAROOT=/scratch3/NCEPDEV/stmp/Jianping.Huang
 
 export INIT_TIME="${INIT_TIME:-2026102814}"
