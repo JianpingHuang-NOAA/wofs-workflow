@@ -1,0 +1,59 @@
+#!/bin/ksh
+set -xa
+export MP_IOAGENT_CNT=all
+export MP_IO_BUFFER_SIZE=8M
+export RUN_ENVIR=${RUN_ENVIR:-nco}
+export NET=${NET:-wofs}
+export RUN=${RUN:-wofs}
+export model=${model:-wofs}
+export wofs_ver=${wofs_ver:-v1.0}
+export PDY=${PDY:?PDY must be defined}
+export cyc=${cyc:?cyc must be defined}
+export yyyymmdd=${PDY}
+export HOMEwofs=${HOMEwofs:-${PACKAGEROOT}/wofs.${wofs_ver}}
+export SCRIPTWOfS=${SCRIPTWOfS:-${HOMEwofs}/scripts}
+export PARMWOfS=${PARMWOfS:-${HOMEwofs}/parm}
+export FIXWOfS=${FIXWOfS:-${HOMEwofs}/fix}
+export UPP_FIX_DIR=${UPP_FIX_DIR:-${FIXWOfS}/UPP}
+export EXECSWOfS=${EXECSWOfS:-${HOMEwofs}/exec}
+export USHWOfS=${USHWOfS:-${HOMEwofs}/ush}
+export UTILWOfS=${UTILWOfS:-${HOMEwofs}/util}
+export DATA=${DATA:-${DATAROOT}/wofs_${yyyymmdd}_${cyc}_ic_prep_${envir}}
+export WORK_DIR=${WORK_DIR:-${DATA}/hrrrdas}
+export COMROOT=${COMROOT:-${HOME}/com/wofs/v1.0}
+
+export COMOUT=${COMOUT:-${COMROOT}/wofs.${yyyymmdd}/${cyc}}
+export INPUTDIR=${INPUTDIR:-${COMOUT}/INPUT}
+export EXE_ROOT=${EXE_ROOT:-${HOMEwofs}/exec}
+export NCL_SCRIPTS=${NCL_SCRIPTS:-${HOMEwofs}/util}
+export STATICWRF_DIR=${STATICWRF_DIR:-${HOMEwofs}/fix/WRF}
+export DATAHOME=${DATAHOME:-${DATAROOT}/WoF_IC/hrrrdas/${INIT_TIME}}
+export WRFOUT_SMALL_DIR=${WRFOUT_SMALL_DIR:-${DATAHOME}}
+export WRFINPUT_STATIC_DIR=${WRFINPUT_STATIC_DIR:-${DATAHOME}}
+export DATE=${yyyymmdd}
+export YYYY=${yyyymmdd:0:4}
+export MM=${yyyymmdd:4:2}
+export DD=${yyyymmdd:6:2}
+export HH=${cyc}
+export IC_PREP_STAGE=${IC_PREP_STAGE:?IC_PREP_STAGE must be defined}
+export INIT_TIME=${INIT_TIME:?INIT_TIME must be defined}
+if [[ "${IC_PREP_STAGE}" == "POST" ]]; then
+    export MEMBER=${MEMBER:?MEMBER must be defined}
+    export FCST_TIME=${FCST_TIME:-01}
+    export FHOUR=${FHOUR:-1}
+    export ENS_SIZE=${ENS_SIZE:-36}
+    export DOMAIN=${DOMAIN:-2}
+    export MODEL=${MODEL:-"WRF-RR NMM"}
+    export EXPECTED_NUM_FIELDS=${EXPECTED_NUM_FIELDS:-163}
+    export CRTM=${CRTM:?CRTM must be defined}
+fi
+${SCRIPTWOfS}/exwofs_ic_prep.sh
+status=$?
+if [[ ${status} -ne 0 ]]; then
+    echo "JWOFS_IC_PREP FAILED"
+    exit ${status}
+fi
+if [[ -n "${jlogfile:-}" ]]; then
+    postmsg "${jlogfile}" "JWOFS_IC_PREP completed normally."
+fi
+exit 0

@@ -1,0 +1,27 @@
+#!/bin/bash
+set -euo pipefail
+
+export HOMEwofs=/scratch4/NCEPDEV/fv3-cam/Jianping.Huang/wofsv1.0
+export DATAROOT=/scratch3/NCEPDEV/stmp/Jianping.Huang
+
+export INIT_TIME="${INIT_TIME:-2026102814}"
+
+: "${INIT_TIME:?INIT_TIME must be defined}"
+
+export WORK_DIR="${WORK_DIR:-${DATAROOT}/WoF_IC/hrrrdas/${INIT_TIME}}"
+
+mkdir -p "${WORK_DIR}"
+
+echo "=============================================================="
+echo "WoFS IC HRRRDAS download"
+echo "INIT_TIME = ${INIT_TIME}"
+echo "WORK_DIR  = ${WORK_DIR}"
+echo "=============================================================="
+
+if "${HOMEwofs}/ush/nomads_hrrrdas_download.sh"; then
+    echo "HRRRDAS download completed successfully"
+else
+    rc=$?
+    echo "ERROR: HRRRDAS download failed (exit code: ${rc})"
+    exit "${rc}"
+fi
