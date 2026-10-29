@@ -26,7 +26,7 @@ export STATICWRF_DIR="${STATICWRF_DIR:-${UPP_LEGACY_ROOT}/fix/WRF}"
 
 # Ursa environment
 module use "${HOMEwofs}/modulefiles"
-module load ursa_intel
+module load ursa_ic_prep
 
 : "${INIT_TIME:?INIT_TIME must be defined}"
 : "${CRTM:?CRTM must be defined}"
