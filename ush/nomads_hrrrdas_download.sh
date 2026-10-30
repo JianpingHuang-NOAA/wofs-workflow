@@ -4,7 +4,7 @@ set -euo pipefail
 : "${INIT_TIME:?INIT_TIME must be defined}"
 : "${WORK_DIR:?WORK_DIR must be defined}"
 
-START_MEMBER=${START_MEMBER:-33}
+START_MEMBER=${START_MEMBER:-1}
 END_MEMBER=${END_MEMBER:-36}
 MAX_PARALLEL=${MAX_PARALLEL:-6}
 
