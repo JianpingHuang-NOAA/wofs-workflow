@@ -14,8 +14,6 @@ export HOMEwofs="${HOMEwofs:-/scratch3/NCEPDEV/wofs/Jianping.Huang/wofs-workflow
 export DATAROOT=/scratch3/NCEPDEV/stmp/Jianping.Huang
 : "${INIT_TIME:?INIT_TIME must be supplied by the workflow}"
 
-: "${INIT_TIME:?INIT_TIME must be defined}"
-
 export WORK_DIR="${DATAROOT}/WoF_IC/hrrrdas/${INIT_TIME}"
 
 exec "${HOMEwofs}/jobs/JWOFS_IC_DOWNLOAD"
