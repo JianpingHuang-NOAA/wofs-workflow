@@ -15,18 +15,19 @@ NOAA RDHPCS Ursa
 
 1. IC_PREP - Initial-condition preparation
 2. BC_PREP - Boundary-condition preparation
-3. WPS - WRF Preprocessing System
-4. GSI/EnKF - Data assimilation
-5. FCST - WRF forecast
-6. POST - Postprocessing
-7. PLOT - Visualization
+3. OBS-PREP - Radar (DBZ & VR) and satellite (CWP) preparation for DA
+4. WPS - WRF Preprocessing System
+5. GSI/EnKF - Data assimilation
+6. FCST - WRF forecast
+7. POST - Postprocessing
+8. PLOT - Visualization
 
 ## Development Strategy
 
 The workflow will be developed incrementally:
 
 - Phase 1: IC_PREP and BC_PREP
-- Phase 2: WPS
+- Phase 2: WPS and OBS_PREP
 - Phase 3: GSI/EnKF and FCST
 - Phase 4: POST and PLOT
 - Phase 5: End-to-end testing and validation
