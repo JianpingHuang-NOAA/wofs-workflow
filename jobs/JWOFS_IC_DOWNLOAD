@@ -25,3 +25,6 @@ else
     echo "ERROR: HRRRDAS download failed (exit code: ${rc})"
     exit "${rc}"
 fi
+
+echo "===== Validate all 36 HRRRDAS inputs ====="
+"${HOMEwofs}/ush/check_hrrrdas_inputs.sh"
