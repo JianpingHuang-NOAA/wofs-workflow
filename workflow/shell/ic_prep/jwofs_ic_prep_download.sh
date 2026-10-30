@@ -12,7 +12,7 @@ set -euo pipefail
 
 export HOMEwofs="${HOMEwofs:-/scratch3/NCEPDEV/wofs/Jianping.Huang/wofs-workflow}"
 export DATAROOT=/scratch3/NCEPDEV/stmp/Jianping.Huang
-#export INIT_TIME=2026102814
+: "${INIT_TIME:?INIT_TIME must be supplied by the workflow}"
 
 : "${INIT_TIME:?INIT_TIME must be defined}"
 

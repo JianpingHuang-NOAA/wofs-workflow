@@ -1,55 +1,115 @@
 #!/bin/ksh
 set -xa
+
+# ==============================================================
+# WoFS v1.0 IC_PREP configuration
+# ==============================================================
+
 export MP_IOAGENT_CNT=all
 export MP_IO_BUFFER_SIZE=8M
+
 export RUN_ENVIR=${RUN_ENVIR:-nco}
 export NET=${NET:-wofs}
 export RUN=${RUN:-wofs}
 export model=${model:-wofs}
 export wofs_ver=${wofs_ver:-v1.0}
-export PDY=${PDY:?PDY must be defined}
-export cyc=${cyc:?cyc must be defined}
-export yyyymmdd=${PDY}
-export HOMEwofs=${HOMEwofs:-${PACKAGEROOT}/wofs.${wofs_ver}}
+
+# Repository and runtime paths
+export HOMEwofs=${HOMEwofs:?HOMEwofs must be defined}
+export DATAROOT=${DATAROOT:-/scratch3/NCEPDEV/stmp/Jianping.Huang}
+
 export SCRIPTWOfS=${SCRIPTWOfS:-${HOMEwofs}/scripts}
 export PARMWOfS=${PARMWOfS:-${HOMEwofs}/parm}
 export FIXWOfS=${FIXWOfS:-${HOMEwofs}/fix}
-export UPP_FIX_DIR=${UPP_FIX_DIR:-${FIXWOfS}/UPP}
 export EXECSWOfS=${EXECSWOfS:-${HOMEwofs}/exec}
 export USHWOfS=${USHWOfS:-${HOMEwofs}/ush}
 export UTILWOfS=${UTILWOfS:-${HOMEwofs}/util}
-export DATA=${DATA:-${DATAROOT}/wofs_${yyyymmdd}_${cyc}_ic_prep_${envir}}
-export WORK_DIR=${WORK_DIR:-${DATA}/hrrrdas}
-export COMROOT=${COMROOT:-${HOME}/com/wofs/v1.0}
-
-export COMOUT=${COMOUT:-${COMROOT}/wofs.${yyyymmdd}/${cyc}}
-export INPUTDIR=${INPUTDIR:-${COMOUT}/INPUT}
-export EXE_ROOT=${EXE_ROOT:-${HOMEwofs}/exec}
 export NCL_SCRIPTS=${NCL_SCRIPTS:-${HOMEwofs}/util}
-export STATICWRF_DIR=${STATICWRF_DIR:-${HOMEwofs}/fix/WRF}
+
+# Temporary dependencies during migration
+export UPP_LEGACY_ROOT=${UPP_LEGACY_ROOT:-/scratch4/NCEPDEV/fv3-cam/Jianping.Huang/wofsv1.0}
+export EXE_ROOT=${EXE_ROOT:-${UPP_LEGACY_ROOT}/exec}
+export UPP_FIX_DIR=${UPP_FIX_DIR:-${UPP_LEGACY_ROOT}/fix/UPP}
+export STATICWRF_DIR=${STATICWRF_DIR:-${UPP_LEGACY_ROOT}/fix/WRF}
+
+# ==============================================================
+# Intel MPI / libfabric runtime
+# ==============================================================
+
+: "${I_MPI_ROOT:?Intel MPI was not loaded}"
+
+LIBFABRIC_DIR="${I_MPI_ROOT}/opt/mpi/libfabric/lib"
+
+if [[ ! -f "${LIBFABRIC_DIR}/libfabric.so.1" ]]; then
+    echo "ERROR: Missing ${LIBFABRIC_DIR}/libfabric.so.1" >&2
+    exit 1
+fi
+
+export LD_LIBRARY_PATH="${LIBFABRIC_DIR}:${I_MPI_ROOT}/lib:${LD_LIBRARY_PATH:-}"
+export I_MPI_DEBUG=0
+export FI_LOG_LEVEL=error
+
+# ==============================================================
+# IC_PREP configuration
+# ==============================================================
+
+export INIT_TIME=${INIT_TIME:?INIT_TIME must be defined}
+
+if (( ${#INIT_TIME} != 10 )) || [[ "${INIT_TIME}" == *[!0-9]* ]]; then
+    echo "ERROR: INIT_TIME must be YYYYMMDDHH" >&2
+    exit 1
+fi
+
+export CRTM=${CRTM:-1}
+export envir=${envir:-test}
+
+export IC_PREP_STAGE=${IC_PREP_STAGE:-POST}
+export MEMBER=${SLURM_ARRAY_TASK_ID:?SLURM_ARRAY_TASK_ID must be defined}
+
+export FCST_TIME=${FCST_TIME:-01}
+export FHOUR=${FHOUR:-1}
+export ENS_SIZE=${ENS_SIZE:-36}
+export DOMAIN=${DOMAIN:-2}
+export MODEL=${MODEL:-RAP}
+export EXPECTED_NUM_FIELDS=${EXPECTED_NUM_FIELDS:-163}
+
+# Input data
 export DATAHOME=${DATAHOME:-${DATAROOT}/WoF_IC/hrrrdas/${INIT_TIME}}
 export WRFOUT_SMALL_DIR=${WRFOUT_SMALL_DIR:-${DATAHOME}}
 export WRFINPUT_STATIC_DIR=${WRFINPUT_STATIC_DIR:-${DATAHOME}}
+
+# Target WoFS cycle = HRRRDAS initialization + forecast hour
+TARGET_TIME=$(date -u -d \
+  "${INIT_TIME:0:8} ${INIT_TIME:8:2}:00:00 UTC + ${FHOUR} hour" \
+  +%Y%m%d%H)
+
+export PDY=${PDY:-${TARGET_TIME:0:8}}
+export cyc=${cyc:-${TARGET_TIME:8:2}}
+
+export yyyymmdd=${PDY}
 export DATE=${yyyymmdd}
 export YYYY=${yyyymmdd:0:4}
 export MM=${yyyymmdd:4:2}
 export DD=${yyyymmdd:6:2}
 export HH=${cyc}
-export IC_PREP_STAGE=${IC_PREP_STAGE:?IC_PREP_STAGE must be defined}
-export INIT_TIME=${INIT_TIME:?INIT_TIME must be defined}
-if [[ "${IC_PREP_STAGE}" == "POST" ]]; then
-    export MEMBER=${MEMBER:?MEMBER must be defined}
-    export FCST_TIME=${FCST_TIME:-01}
-    export FHOUR=${FHOUR:-1}
-    export ENS_SIZE=${ENS_SIZE:-36}
-    export DOMAIN=${DOMAIN:-2}
-    export MODEL=${MODEL:-"WRF-RR NMM"}
-    export EXPECTED_NUM_FIELDS=${EXPECTED_NUM_FIELDS:-163}
-    export CRTM=${CRTM:?CRTM must be defined}
-fi
+
+# NCO-style working and output directories
+export DATA=${DATA:-${DATAROOT}/wofs_${yyyymmdd}_${cyc}_ic_prep_${envir}}
+export WORK_DIR=${WORK_DIR:-${DATA}/hrrrdas}
+
+export COMROOT=${COMROOT:-${DATAROOT}/com/wofs/v1.0}
+export COMOUT=${COMOUT:-${COMROOT}/wofs.${yyyymmdd}/${cyc}}
+export INPUTDIR=${INPUTDIR:-${COMOUT}/INPUT}
+
+mkdir -p "${INPUTDIR}"
+
+# ==============================================================
+# Execute IC_PREP
+# ==============================================================
+
 ${SCRIPTWOfS}/exwofs_ic_prep.sh
 status=$?
-if [[ ${status} -ne 0 ]]; then
+if (( status != 0 )); then
     echo "JWOFS_IC_PREP FAILED"
     exit ${status}
 fi
