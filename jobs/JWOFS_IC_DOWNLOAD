@@ -1,30 +1,255 @@
 #!/bin/bash
+# ============================================================
+# JWOFS_IC_DOWNLOAD
+#
+# WoFS v1.0 IC_PREP - HRRRDAS Download Job
+#
+# Called by:
+#   jobs/jwofs_ic_prep_download.sh
+#
+# Responsibilities:
+#   1. Read parm/ic_prep/config.yaml
+#   2. Resolve YAML path variables
+#   3. Export download environment
+#   4. Prepare working directories
+#   5. Execute HRRRDAS download script
+#
+# SLURM directives and module loading belong in the wrapper.
+# ============================================================
+
 set -euo pipefail
 
-export HOMEwofs="${HOMEwofs:-/scratch3/NCEPDEV/wofs/Jianping.Huang/wofs-workflow}"
-export DATAROOT=/scratch3/NCEPDEV/stmp/Jianping.Huang
+# ------------------------------------------------------------
+# 1. Validate workflow root and configuration
+# ------------------------------------------------------------
+: "${HOMEwofs:?HOMEwofs must be set by the SLURM wrapper}"
 
-: "${INIT_TIME:?INIT_TIME must be supplied by the workflow}"
+export IC_PREP_CONFIG="${IC_PREP_CONFIG:-${HOMEwofs}/parm/ic_prep/config.yaml}"
 
-: "${INIT_TIME:?INIT_TIME must be defined}"
-
-export WORK_DIR="${WORK_DIR:-${DATAROOT}/WoF_IC/hrrrdas/${INIT_TIME}}"
-
-mkdir -p "${WORK_DIR}"
-
-echo "=============================================================="
-echo "WoFS IC HRRRDAS download"
-echo "INIT_TIME = ${INIT_TIME}"
-echo "WORK_DIR  = ${WORK_DIR}"
-echo "=============================================================="
-
-if "${HOMEwofs}/ush/nomads_hrrrdas_download.sh"; then
-    echo "HRRRDAS download completed successfully"
-else
-    rc=$?
-    echo "ERROR: HRRRDAS download failed (exit code: ${rc})"
-    exit "${rc}"
+if [[ ! -f "${IC_PREP_CONFIG}" ]]; then
+    echo "[ERROR] Configuration not found: ${IC_PREP_CONFIG}" >&2
+    exit 1
 fi
 
-echo "===== Validate all 36 HRRRDAS inputs ====="
-"${HOMEwofs}/ush/check_hrrrdas_inputs.sh"
+# ------------------------------------------------------------
+# 2. Select bootstrap Python
+# ------------------------------------------------------------
+# The wrapper should provide a Python interpreter with PyYAML.
+# If WOFS_PYTHON is not exported, use the active python3.
+
+BOOTSTRAP_PYTHON="${WOFS_PYTHON:-$(command -v python3 || true)}"
+
+if [[ -z "${BOOTSTRAP_PYTHON}" ]]; then
+    echo "[ERROR] Python interpreter unavailable" >&2
+    exit 1
+fi
+
+if ! "${BOOTSTRAP_PYTHON}" -c 'import yaml' 2>/dev/null; then
+    echo "[ERROR] PyYAML unavailable in: ${BOOTSTRAP_PYTHON}" >&2
+    echo "[ERROR] Load a Python environment with PyYAML." >&2
+    exit 1
+fi
+
+# ------------------------------------------------------------
+# 3. Read YAML and generate environment exports
+# ------------------------------------------------------------
+ENV_FILE="$(mktemp)"
+trap 'rm -f "${ENV_FILE}"' EXIT
+
+"${BOOTSTRAP_PYTHON}" - "${IC_PREP_CONFIG}" > "${ENV_FILE}" <<'PYCODE'
+import os
+import re
+import shlex
+import sys
+
+import yaml
+
+config_file = sys.argv[1]
+
+with open(config_file, "r") as f:
+    cfg = yaml.safe_load(f) or {}
+
+if not isinstance(cfg, dict):
+    raise SystemExit(
+        "[ERROR] YAML root must be a mapping"
+    )
+
+workflow = cfg.get("workflow", {})
+paths = cfg.get("paths", {})
+runtime = cfg.get("runtime", {})
+
+for name, section in (
+    ("workflow", workflow),
+    ("paths", paths),
+    ("runtime", runtime),
+):
+    if not isinstance(section, dict):
+        raise SystemExit(
+            "[ERROR] YAML section '{}' must be a mapping".format(name)
+        )
+
+# ------------------------------------------------------------
+# Required configuration values
+# ------------------------------------------------------------
+values = {
+    "HOMEwofs": os.environ["HOMEwofs"],
+    "WOFS_PYTHON": workflow.get("WOFS_PYTHON"),
+    "INIT_TIME": workflow.get("INIT_TIME"),
+    "DATAROOT": paths.get("dataroot"),
+}
+
+for name in ("WOFS_PYTHON", "INIT_TIME", "DATAROOT"):
+    if values[name] is None or str(values[name]).strip() == "":
+        raise SystemExit(
+            "[ERROR] Missing configuration: {}".format(name)
+        )
+
+# ------------------------------------------------------------
+# Validate initialization cycle
+# ------------------------------------------------------------
+init_time = str(values["INIT_TIME"])
+
+if not re.fullmatch(r"\d{10}", init_time):
+    raise SystemExit(
+        "[ERROR] INIT_TIME must use YYYYMMDDHH format"
+    )
+
+values["INIT_TIME"] = init_time
+values["PDY"] = init_time[:8]
+values["cyc"] = init_time[8:10]
+
+# ------------------------------------------------------------
+# Download-related YAML paths
+# ------------------------------------------------------------
+raw = {
+    "INPUT_ROOT": paths.get("input_root"),
+    "WORK_DIR": paths.get("download_work_dir"),
+    "DOWNLOAD_SCRIPT": paths.get("download_script"),
+    "LOG_DIR": runtime.get("log_dir"),
+}
+
+required_paths = (
+    "INPUT_ROOT",
+    "WORK_DIR",
+    "DOWNLOAD_SCRIPT",
+    "LOG_DIR",
+)
+
+for name in required_paths:
+    if raw[name] is None or str(raw[name]).strip() == "":
+        raise SystemExit(
+            "[ERROR] Missing YAML path for {}".format(name)
+        )
+
+# ------------------------------------------------------------
+# Resolve ${VARIABLE} references
+# ------------------------------------------------------------
+pattern = re.compile(
+    r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}"
+)
+
+def resolve(name, stack=()):
+    if name in stack:
+        raise ValueError(
+            "Circular YAML reference: {}".format(
+                " -> ".join(stack + (name,))
+            )
+        )
+
+    if name in values:
+        return str(values[name])
+
+    if name not in raw:
+        raise ValueError(
+            "Undefined YAML variable: {}".format(name)
+        )
+
+    value = str(raw[name])
+
+    def replace(match):
+        variable = match.group(1)
+        return resolve(variable, stack + (name,))
+
+    result = pattern.sub(replace, value)
+
+    values[name] = result
+    return result
+
+try:
+    for name in required_paths:
+        resolve(name)
+except ValueError as exc:
+    raise SystemExit("[ERROR] {}".format(exc))
+
+# ------------------------------------------------------------
+# Export variables safely for Bash
+# ------------------------------------------------------------
+for name, value in values.items():
+    print(
+        "export {}={}".format(
+            name,
+            shlex.quote(str(value))
+        )
+    )
+PYCODE
+
+# Import generated environment variables
+source "${ENV_FILE}"
+
+# ------------------------------------------------------------
+# 4. Validate runtime configuration
+# ------------------------------------------------------------
+: "${INIT_TIME:?INIT_TIME is required}"
+: "${DATAROOT:?DATAROOT is required}"
+: "${INPUT_ROOT:?INPUT_ROOT is required}"
+: "${WORK_DIR:?WORK_DIR is required}"
+: "${DOWNLOAD_SCRIPT:?DOWNLOAD_SCRIPT is required}"
+: "${LOG_DIR:?LOG_DIR is required}"
+
+if [[ ! -x "${WOFS_PYTHON}" ]]; then
+    echo "[ERROR] WOFS_PYTHON is not executable:" >&2
+    echo "        ${WOFS_PYTHON}" >&2
+    exit 1
+fi
+
+if [[ ! -f "${DOWNLOAD_SCRIPT}" ]]; then
+    echo "[ERROR] Download script not found:" >&2
+    echo "        ${DOWNLOAD_SCRIPT}" >&2
+    exit 1
+fi
+
+# ------------------------------------------------------------
+# 5. Create working directories
+# ------------------------------------------------------------
+mkdir -p "${INPUT_ROOT}"
+mkdir -p "${WORK_DIR}"
+mkdir -p "${LOG_DIR}"
+
+# ------------------------------------------------------------
+# 6. Print configuration summary
+# ------------------------------------------------------------
+echo "=================================================="
+echo "WoFS v1.0 IC_PREP - HRRRDAS Download"
+echo "=================================================="
+echo "HOSTNAME        : $(hostname)"
+echo "SLURM_JOB_ID    : ${SLURM_JOB_ID:-N/A}"
+echo "HOMEwofs        : ${HOMEwofs}"
+echo "IC_PREP_CONFIG  : ${IC_PREP_CONFIG}"
+echo "WOFS_PYTHON     : ${WOFS_PYTHON}"
+echo "INIT_TIME       : ${INIT_TIME}"
+echo "PDY             : ${PDY}"
+echo "cyc             : ${cyc}"
+echo "DATAROOT        : ${DATAROOT}"
+echo "INPUT_ROOT      : ${INPUT_ROOT}"
+echo "WORK_DIR        : ${WORK_DIR}"
+echo "LOG_DIR         : ${LOG_DIR}"
+echo "DOWNLOAD_SCRIPT : ${DOWNLOAD_SCRIPT}"
+echo "=================================================="
+
+# ------------------------------------------------------------
+# 7. Execute HRRRDAS download script
+# ------------------------------------------------------------
+echo "[INFO] Starting HRRRDAS download at $(date -u)"
+echo "[INFO] Initialization cycle: ${INIT_TIME}"
+
+exec /bin/bash "${DOWNLOAD_SCRIPT}"

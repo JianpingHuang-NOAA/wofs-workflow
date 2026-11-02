@@ -1,86 +1,154 @@
-#!/bin/bash
-set -euo pipefail
-
-# ============================================================
-# WoFS v1.0 IC_PREP workflow submission
+#!/usr/bin/env bash
+#
+# WoFS v1.0 IC_PREP - SLURM submission script
+#
+# Reads:
+#   parm/ic_prep/config.yaml
+#
+# Submits:
+#   workflow/shell/ic_prep/jwofs_ic_prep_post.sh
 #
 # Usage:
-#   ./workflow/shell/ic_prep/submit_wofs_ic_prep.sh YYYYMMDDHH
+#   ./submit_wofs_ic_prep.sh YYYYMMDDHH
 #
-# DOWNLOAD: u1-service
-# POST:     u1-compute, 36 ensemble members
-# ============================================================
+# Example:
+#   ./submit_wofs_ic_prep.sh 2026103114
+#
 
-INIT_TIME="${1:?Usage: $0 YYYYMMDDHH}"
+set -euo pipefail
+
+# -------------------------------------------------------
+# Locate repository root
+# -------------------------------------------------------
+SCRIPT_DIR="$(
+    cd "$(dirname "${BASH_SOURCE[0]}")" && pwd
+)"
+
+export HOMEwofs="$(
+    cd "${SCRIPT_DIR}/../../.." && pwd
+)"
+
+# -------------------------------------------------------
+# Initialization time
+# -------------------------------------------------------
+if [[ $# -ne 1 ]]; then
+    echo "Usage: $0 YYYYMMDDHH" >&2
+    exit 1
+fi
+
+export INIT_TIME="$1"
 
 if [[ ! "${INIT_TIME}" =~ ^[0-9]{10}$ ]]; then
     echo "ERROR: INIT_TIME must be YYYYMMDDHH" >&2
     exit 1
 fi
 
-if ! date -u -d \
-    "${INIT_TIME:0:8} ${INIT_TIME:8:2}:00:00 UTC" \
-    +%Y%m%d%H >/dev/null 2>&1; then
-    echo "ERROR: Invalid INIT_TIME" >&2
+# -------------------------------------------------------
+# Configuration
+# -------------------------------------------------------
+export IC_PREP_CONFIG="${IC_PREP_CONFIG:-${HOMEwofs}/parm/ic_prep/config.yaml}"
+export IC_PREP_STAGE="POST"
+
+CONFIG_LOADER="${HOMEwofs}/ush/load_ic_prep_config.py"
+
+[[ -f "${IC_PREP_CONFIG}" ]] || {
+    echo "ERROR: Missing config.yaml: ${IC_PREP_CONFIG}" >&2
+    exit 1
+}
+
+[[ -f "${CONFIG_LOADER}" ]] || {
+    echo "ERROR: Missing YAML loader: ${CONFIG_LOADER}" >&2
+    exit 1
+}
+
+# MEMBER is needed by the loader to expand member paths.
+# The array task will override this value at runtime.
+export MEMBER=1
+
+# Select Python from the current environment.
+# IC_PREP_PYTHON may be explicitly exported by the caller.
+export IC_PREP_PYTHON="${IC_PREP_PYTHON:-$(command -v python3)}"
+
+if [[ -z "${IC_PREP_PYTHON}" ]] ||
+   ! "${IC_PREP_PYTHON}" -c "import yaml" >/dev/null 2>&1; then
+    echo "ERROR: PyYAML is unavailable in the selected Python environment" >&2
+    echo "Activate an environment containing PyYAML before submitting." >&2
     exit 1
 fi
 
-HOMEwofs="${HOMEwofs:-/scratch3/NCEPDEV/wofs/Jianping.Huang/wofs-workflow}"
+CONFIG_EXPORTS=$("${IC_PREP_PYTHON}" "${CONFIG_LOADER}" \
+    "${IC_PREP_CONFIG}")
 
-DOWNLOAD_SCRIPT="${HOMEwofs}/workflow/shell/ic_prep/jwofs_ic_prep_download.sh"
-POST_SCRIPT="${HOMEwofs}/workflow/shell/ic_prep/jwofs_ic_prep_post.sh"
+eval "${CONFIG_EXPORTS}"
 
-LOGDIR="/scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_IC/logs"
+# -------------------------------------------------------
+# Validate SLURM configuration
+# -------------------------------------------------------
+: "${ENS_SIZE:?Missing ENS_SIZE}"
+: "${IC_MPI_TASKS:?Missing IC_MPI_TASKS}"
+: "${IC_PARTITION:?Missing IC_PARTITION}"
+: "${IC_QOS:?Missing IC_QOS}"
+: "${IC_WALLTIME:?Missing IC_WALLTIME}"
+: "${IC_LOG_DIR:?Missing IC_LOG_DIR}"
+: "${IC_MODULEFILE:?Missing IC_MODULEFILE}"
 
-mkdir -p "${LOGDIR}"
-
-for script in "${DOWNLOAD_SCRIPT}" "${POST_SCRIPT}"; do
-    if [[ ! -f "${script}" ]]; then
-        echo "ERROR: Missing ${script}" >&2
-        exit 1
-    fi
-done
-
-TARGET_TIME=$(date -u -d \
-    "${INIT_TIME:0:8} ${INIT_TIME:8:2}:00:00 UTC + 1 hour" \
-    +%Y%m%d%H)
-
-echo "=================================================="
-echo "WoFS v1.0 IC_PREP submission"
-echo "=================================================="
-echo "INIT_TIME   = ${INIT_TIME}"
-echo "TARGET_TIME = ${TARGET_TIME}"
-echo "MEMBERS     = 1-36"
-echo "=================================================="
-
-# Stage 1: HRRRDAS download
-DOWNLOAD_JOBID=$(sbatch --parsable \
-    --export=ALL,INIT_TIME="${INIT_TIME}" \
-    "${DOWNLOAD_SCRIPT}")
-
-echo "DOWNLOAD submitted: ${DOWNLOAD_JOBID}"
-
-# Stage 2: UPP postprocessing
-# Only starts after successful DOWNLOAD completion.
-if POST_JOBID=$(sbatch --parsable \
-    --dependency="afterok:${DOWNLOAD_JOBID}" \
-    --array=1-36 \
-    --export=ALL,INIT_TIME="${INIT_TIME}" \
-    "${POST_SCRIPT}"); then
-    echo "POST submitted: ${POST_JOBID}"
-else
-    echo "ERROR: POST submission failed." >&2
-    echo "DOWNLOAD job ${DOWNLOAD_JOBID} may still run." >&2
+[[ "${ENS_SIZE}" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: ENS_SIZE must be an integer" >&2
     exit 1
-fi
+}
 
-echo
-echo "=================================================="
-echo "WoFS IC_PREP jobs submitted"
-echo "=================================================="
-echo "DOWNLOAD_JOBID=${DOWNLOAD_JOBID}"
-echo "POST_JOBID=${POST_JOBID}"
-echo
-echo "Monitor:"
-echo "  squeue -j ${DOWNLOAD_JOBID},${POST_JOBID}"
-echo "  sacct -j ${DOWNLOAD_JOBID},${POST_JOBID} --format=JobID,JobName,State,ExitCode,Elapsed"
+(( ENS_SIZE > 0 )) || {
+    echo "ERROR: ENS_SIZE must be positive" >&2
+    exit 1
+}
+
+# -------------------------------------------------------
+# Prepare log directory
+# -------------------------------------------------------
+mkdir -p "${IC_LOG_DIR}"
+
+# -------------------------------------------------------
+# SLURM job script
+# -------------------------------------------------------
+JOB_SCRIPT="${SCRIPT_DIR}/jwofs_ic_prep_post.sh"
+
+[[ -f "${JOB_SCRIPT}" ]] || {
+    echo "ERROR: Missing SLURM job script:" >&2
+    echo "  ${JOB_SCRIPT}" >&2
+    exit 1
+}
+
+# -------------------------------------------------------
+# Display submission settings
+# -------------------------------------------------------
+echo "======================================================"
+echo " WoFS v1.0 IC_PREP - SLURM submission"
+echo "======================================================"
+echo "HOMEwofs       = ${HOMEwofs}"
+echo "IC_PREP_CONFIG = ${IC_PREP_CONFIG}"
+echo "INIT_TIME      = ${INIT_TIME}"
+echo "PDY            = ${PDY}"
+echo "cyc            = ${cyc}"
+echo "ENS_SIZE       = ${ENS_SIZE}"
+echo "IC_MPI_TASKS   = ${IC_MPI_TASKS}"
+echo "IC_PARTITION   = ${IC_PARTITION}"
+echo "IC_QOS         = ${IC_QOS}"
+echo "IC_WALLTIME    = ${IC_WALLTIME}"
+echo "IC_MODULEFILE  = ${IC_MODULEFILE}"
+echo "IC_LOG_DIR     = ${IC_LOG_DIR}"
+echo "======================================================"
+
+# -------------------------------------------------------
+# Submit SLURM array
+# -------------------------------------------------------
+sbatch \
+    --job-name=wofs_ic_post \
+    --partition="${IC_PARTITION}" \
+    --qos="${IC_QOS}" \
+    --ntasks="${IC_MPI_TASKS}" \
+    --time="${IC_WALLTIME}" \
+    --array="${IC_PREP_ARRAY:-1-${ENS_SIZE}}" \
+    --output="${IC_LOG_DIR}/wofs_ic_post_%A_%a.out" \
+    --error="${IC_LOG_DIR}/wofs_ic_post_%A_%a.err" \
+    --export="ALL,HOMEwofs=${HOMEwofs},INIT_TIME=${INIT_TIME},IC_PREP_CONFIG=${IC_PREP_CONFIG},IC_PREP_STAGE=POST" \
+    "${JOB_SCRIPT}"

@@ -1,0 +1,13 @@
+&MODEL_INPUTS
+ fileName='wrfout.nc',
+ IOFORM='${UPP_IOFORM}',
+ grib='${UPP_GRIB}',
+ DateStr='${VALID_TIME}',
+ MODELNAME='${UPP_CORE}',
+ SUBMODELNAME='',
+ fileNameFlux='wrfout.nc',
+ fileNameFlat='postxconfig-NT.txt'
+/
+&NAMPGB
+ KPO=${UPP_KPO},PO=${UPP_PO},
+/
