@@ -26,14 +26,12 @@ export IC_PREP_STAGE=POST
 
 export MEMBER="${SLURM_ARRAY_TASK_ID}"
 
-#jp printf -v MEMBER04 "%04d" "${MEMBER}"
-#jp export MEMBER04
+# Load NCO-style runtime version definitions
+source "${HOMEwofs}/versions/run.ver"
 
-# ------------------------------------------------------------
-# Ursa modules
-# ------------------------------------------------------------
+# Load the configured Ursa module environment
 module use "${HOMEwofs}/modulefiles"
-module load ursa_intel
+module load "${wofs_modulefile}"
 
 # ------------------------------------------------------------
 # Python interpreter for YAML loader

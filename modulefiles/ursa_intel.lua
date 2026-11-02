@@ -16,12 +16,16 @@ load(pathJoin("cmake", cmake_ver))
 
 load("upp_common")
 
-load("wgrib2")
+wgrib2_ver = os.getenv("wgrib2_ver") or "3.1.3_wmo"
+load(pathJoin("wgrib2", wgrib2_ver))
 load("nco")
 load("ncl")
 
-load("jasper/2.0.32")
-load("libpng/1.6.37")
+jasper_ver = os.getenv("jasper_ver") or "2.0.32"
+libpng_ver = os.getenv("libpng_ver") or "1.6.37"
+
+load(pathJoin("jasper", jasper_ver))
+load(pathJoin("libpng", libpng_ver))
 
 setenv("CC", "mpiicx")
 setenv("CXX", "mpiicpx")
