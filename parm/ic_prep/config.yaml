@@ -20,7 +20,7 @@ paths:
   wrfout_small_dir: ${INPUT_ROOT}
   wrfinput_static_dir: ${INPUT_ROOT}
 
-  work_root: ${DATAROOT}/wofs_${PDY}_${cyc}_ic_prep_test
+  work_root: ${DATAROOT}/wofs_${PDY}_${cyc}_ic_prep
   download_work_dir: ${INPUT_ROOT}
   download_script: ${HOMEwofs}/ush/nomads_hrrrdas_download.sh
 
