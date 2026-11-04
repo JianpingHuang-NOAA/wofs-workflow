@@ -6,8 +6,8 @@
 #SBATCH --ntasks=160
 #SBATCH --time=00:10:00
 #SBATCH --array=1-36%36
-#SBATCH -o /scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_IC/logs/wofs_ic_post_%A_%a.out
-#SBATCH -e /scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_IC/logs/wofs_ic_post_%A_%a.err
+#SBATCH -o /scratch3/NCEPDEV/stmp/Jianping.Huang/logs/wofsv1.0/wofs_ic_post_%A_%a.out
+#SBATCH -e /scratch3/NCEPDEV/stmp/Jianping.Huang/logs/wofsv1.0/wofs_ic_post_%A_%a.err
 
 set -euo pipefail
 

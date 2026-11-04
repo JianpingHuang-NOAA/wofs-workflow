@@ -3,7 +3,7 @@
 
 workflow:
   WOFS_PYTHON: /scratch3/NAGAPE/wof/ywang/conda/wofs_post/bin/python
-  INIT_TIME: "2026110114"
+  INIT_TIME: "2026110214"
   stage: POST
   ens_size: 36
   domain: 2
