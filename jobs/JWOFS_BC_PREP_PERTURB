@@ -1,0 +1,120 @@
+#!/bin/bash
+# ============================================================================
+# JWOFS_BC_PREP_PERTURB
+#
+# WoFS v1.0 BC_PREP: HRRR ensemble perturbation J-job.
+#
+# One invocation processes one HRRR cycle, forecast hour, and GEFS member.
+# The scientific algorithm remains in ush/perturb_hrrr.ksh.
+# ============================================================================
+
+set -euo pipefail
+
+# Repository location
+: "${HOMEwofs:?ERROR: HOMEwofs must be defined}"
+[[ -d "${HOMEwofs}" ]] || {
+    echo "ERROR: Repository not found: ${HOMEwofs}"
+    exit 1
+}
+
+# Required task parameters
+: "${START_TIME:?ERROR: START_TIME must be defined}"
+: "${FCST_LEAD_TIME:?ERROR: FCST_LEAD_TIME must be defined}"
+: "${MEMBER:?ERROR: MEMBER must be defined}"
+: "${WOF_CYCLE_TIME:?ERROR: WOF_CYCLE_TIME must be defined}"
+
+# Validate values
+[[ "${START_TIME}" =~ ^[0-9]{10}$ ]] || {
+    echo "ERROR: Invalid START_TIME"
+    exit 1
+}
+
+[[ "${WOF_CYCLE_TIME}" =~ ^[0-9]{10}$ ]] || {
+    echo "ERROR: Invalid WOF_CYCLE_TIME"
+    exit 1
+}
+
+[[ "${MEMBER}" =~ ^[0-9]{1,2}$ ]] || {
+    echo "ERROR: Invalid MEMBER"
+    exit 1
+}
+
+[[ "${FCST_LEAD_TIME}" =~ ^[0-9]{1,2}$ ]] || {
+    echo "ERROR: Invalid FCST_LEAD_TIME"
+    exit 1
+}
+
+MEMBER_NUM=$((10#${MEMBER}))
+FHOUR_NUM=$((10#${FCST_LEAD_TIME}))
+
+(( MEMBER_NUM >= 1 && MEMBER_NUM <= 18 )) || {
+    echo "ERROR: MEMBER must be between 01 and 18"
+    exit 1
+}
+
+(( FHOUR_NUM >= 0 && FHOUR_NUM <= 25 )) || {
+    echo "ERROR: FCST_LEAD_TIME must be between 00 and 25"
+    exit 1
+}
+
+export MEMBER
+MEMBER=$(printf "%02d" "${MEMBER_NUM}")
+export MEMBER
+
+FCST_LEAD_TIME=$(printf "%02d" "${FHOUR_NUM}")
+export FCST_LEAD_TIME
+
+# Input locations
+export DATAROOT="${DATAROOT:-/scratch3/NCEPDEV/stmp/Jianping.Huang}"
+
+export DATAHOME_GEFS="${DATAHOME_GEFS:-${DATAROOT}/WoF_BC/gefs}"
+
+export DATAHOME_HRRR="${DATAHOME_HRRR:-${DATAROOT}/WoF_BC/pert_hrrr}"
+
+export HRRR_DIR="${HRRR_DIR:-/public/data/grids/hrrr/conus/wrfnat/grib2}"
+
+export HRRR_WRFPRS_DIR="${HRRR_WRFPRS_DIR:-/public/data/grids/hrrr/conus/wrfprs/grib2}"
+
+export NCL_SCRIPTS="${NCL_SCRIPTS:-${HOMEwofs}/util}"
+
+# Preserve user-provided configuration
+export SOIL_FROM_WRFPRS="${SOIL_FROM_WRFPRS:-0}"
+export MIN_FILE_SIZE="${MIN_FILE_SIZE:-1000000000}"
+
+export DATAHOME="${DATAHOME:-${DATAHOME_HRRR}/${START_TIME}/postprd_mem00${MEMBER}}"
+
+# COMROOT must be explicitly configured to avoid accidental staging
+# into the historical operational directory.
+: "${COMROOT:?ERROR: COMROOT must be explicitly defined}"
+
+# Check application files
+for FILE in \
+    "${HOMEwofs}/scripts/exwofs_bc_prep_perturb.sh" \
+    "${HOMEwofs}/ush/perturb_hrrr.ksh" \
+    "${NCL_SCRIPTS}/perturb_hrrr.ncl" \
+    "${NCL_SCRIPTS}/netcdf_to_grib.py"
+do
+    [[ -f "${FILE}" ]] || {
+        echo "ERROR: Required file missing: ${FILE}"
+        exit 1
+    }
+done
+
+echo "============================================================"
+echo "WoFS v1.0 BC_PREP PERTURB"
+echo "============================================================"
+echo "HOMEwofs          = ${HOMEwofs}"
+echo "START_TIME        = ${START_TIME}"
+echo "FCST_LEAD_TIME    = ${FCST_LEAD_TIME}"
+echo "MEMBER            = ${MEMBER}"
+echo "WOF_CYCLE_TIME    = ${WOF_CYCLE_TIME}"
+echo "DATAHOME          = ${DATAHOME}"
+echo "DATAHOME_GEFS     = ${DATAHOME_GEFS}"
+echo "HRRR_DIR          = ${HRRR_DIR}"
+echo "HRRR_WRFPRS_DIR   = ${HRRR_WRFPRS_DIR}"
+echo "SOIL_FROM_WRFPRS  = ${SOIL_FROM_WRFPRS}"
+echo "MIN_FILE_SIZE     = ${MIN_FILE_SIZE}"
+echo "COMROOT           = ${COMROOT}"
+echo "============================================================"
+
+"${HOMEwofs}/scripts/exwofs_bc_prep_perturb.sh"

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#
+# WoFS v1.0 BC_PREP runtime versions
+#
+
+_BC_VERSIONS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+
+source "${_BC_VERSIONS_DIR}/run.ver"
+
+export wofs_component=bc_prep
+export wofs_modulefile=ursa_bc_prep
+
+unset _BC_VERSIONS_DIR

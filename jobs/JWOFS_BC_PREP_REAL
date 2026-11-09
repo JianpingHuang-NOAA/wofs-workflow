@@ -1,0 +1,207 @@
+#!/bin/bash
+# ============================================================================
+# JWOFS_BC_PREP_REAL
+# WoFS v1 boundary-condition preparation REAL job
+#
+# Purpose:
+#   Prepare and run WRF real.exe for one GEFS ensemble member and one
+#   GEFS forecast valid time.
+#
+# Input:
+#   METGRID output:
+#
+#     .../gefs/<VALID_TIME>/mem<NN>/wpsprd/
+#         met_em.d01.YYYY-MM-DD_HH:00:00.nc
+#
+# Output:
+#
+#     .../gefs/<VALID_TIME>/mem<NN>/wrfprd/
+#         wrfinput_d01
+#         wrfbdy_d01
+#
+# Legacy WoF_BC forecast-hour range:
+#   6 9 12 15 18 21 24 27 30 33 36
+# ============================================================================
+
+set -xue
+
+date
+
+# ---------------------------------------------------------------------------
+# WoFS directory definitions
+# ---------------------------------------------------------------------------
+
+: "${HOMEwofs:?ERROR: HOMEwofs must be set by the BC_PREP wrapper}"
+export HOMEwofs
+
+export EXECwofs="${EXECwofs:-${HOMEwofs}/exec}"
+export PARMwofs="${PARMwofs:-${HOMEwofs}/parm}"
+export USHwofs="${USHwofs:-${HOMEwofs}/ush}"
+export FIXwofs="${FIXwofs:-${HOMEwofs}/fix}"
+export SORCwofs="${SORCwofs:-${HOMEwofs}/sorc}"
+
+export NET="${NET:-dev}"
+export RUN="${RUN:-wofs}"
+export wofs_ver="${wofs_ver:-v1.0}"
+
+# ---------------------------------------------------------------------------
+# Data locations
+# ---------------------------------------------------------------------------
+
+export DATA="${DATA:-/scratch3/NCEPDEV/stmp/Jianping.Huang}"
+export BC_DATA="${BC_DATA:-${DATA}/WoF_BC}"
+
+# ---------------------------------------------------------------------------
+# Required environment
+# ---------------------------------------------------------------------------
+
+export MEMBER="${MEMBER:?ERROR: MEMBER is not set}"
+export PDY="${PDY:-$(date -u +%Y%m%d)}"
+export cyc="${cyc:-12}"
+
+export CDATE="${CDATE:-${PDY}${cyc}}"
+export VALID_TIME="${VALID_TIME:?ERROR: VALID_TIME is not set}"
+
+# ---------------------------------------------------------------------------
+# Validate CDATE and VALID_TIME
+# ---------------------------------------------------------------------------
+
+if [[ ! "${CDATE}" =~ ^[0-9]{10}$ ]]; then
+    echo "ERROR: Invalid CDATE: ${CDATE}"
+    exit 1
+fi
+
+if [[ ! "${VALID_TIME}" =~ ^[0-9]{10}$ ]]; then
+    echo "ERROR: Invalid VALID_TIME: ${VALID_TIME}"
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Calculate GEFS initialization time and forecast hour
+#
+# WoFS cycle 2026100512
+# GEFS initialization 2026100506
+# ---------------------------------------------------------------------------
+
+CDATE_ISO="${CDATE:0:4}-${CDATE:4:2}-${CDATE:6:2} ${CDATE:8:2}:00:00"
+VALID_TIME_ISO="${VALID_TIME:0:4}-${VALID_TIME:4:2}-${VALID_TIME:6:2} ${VALID_TIME:8:2}:00:00"
+
+CDATE_EPOCH=$(date -u -d "${CDATE_ISO}" +%s)
+VALID_TIME_EPOCH=$(date -u -d "${VALID_TIME_ISO}" +%s)
+
+GEFS_INIT_EPOCH=$((CDATE_EPOCH - 21600))
+
+export GEFS_INIT=$(date -u -d "@${GEFS_INIT_EPOCH}" +%Y%m%d%H)
+
+if (( VALID_TIME_EPOCH < CDATE_EPOCH )); then
+    echo "ERROR: VALID_TIME ${VALID_TIME} is earlier than CDATE ${CDATE}."
+    exit 1
+fi
+
+FCST_SECONDS=$((VALID_TIME_EPOCH - GEFS_INIT_EPOCH))
+
+if (( FCST_SECONDS % 3600 != 0 )); then
+    echo "ERROR: VALID_TIME ${VALID_TIME} is not an integer number of hours"
+    echo "       from GEFS_INIT ${GEFS_INIT}."
+    exit 1
+fi
+
+export FCST_HOUR=$((FCST_SECONDS / 3600))
+
+if (( FCST_HOUR < 6 || FCST_HOUR > 36 || FCST_HOUR % 3 != 0 )); then
+    echo "ERROR: FCST_HOUR=${FCST_HOUR}"
+    echo "       Legacy WoF_BC range is 6-36 hours at 3-hour intervals."
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# REAL executable
+# ---------------------------------------------------------------------------
+
+export REAL_EXE="${REAL_EXE:-${EXECwofs}/real.exe}"
+
+if [[ ! -x "${REAL_EXE}" ]]; then
+    echo "ERROR: REAL executable not found or not executable:"
+    echo "  ${REAL_EXE}"
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Input/output directories
+# ---------------------------------------------------------------------------
+
+export DATAHOME="${BC_DATA}/gefs/${VALID_TIME}/mem${MEMBER}"
+
+export WPSPRD="${DATAHOME}/wpsprd"
+export WRFPRD="${DATAHOME}/wrfprd"
+
+# ---------------------------------------------------------------------------
+# Validate METGRID input
+# ---------------------------------------------------------------------------
+
+export METGRID_FILE="${WPSPRD}/met_em.d01.${VALID_TIME:0:4}-${VALID_TIME:4:2}-${VALID_TIME:6:2}_${VALID_TIME:8:2}:00:00.nc"
+
+if [[ ! -s "${METGRID_FILE}" ]]; then
+    echo "ERROR: METGRID input not found:"
+    echo "  ${METGRID_FILE}"
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# WRF namelist
+#
+# Use the target WoFS WRF namelist template.
+# ---------------------------------------------------------------------------
+
+export MEMBER_NUM=$((10#${MEMBER}))
+export NAMELIST="namelist.input.member${MEMBER_NUM}"
+export WRF_NAMELIST="${FIXwofs}/WRF/${NAMELIST}"
+
+if [[ ! -r "${WRF_NAMELIST}" ]]; then
+    echo "ERROR: WRF namelist template not found or not readable:"
+    echo "  ${WRF_NAMELIST}"
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Diagnostics
+# ---------------------------------------------------------------------------
+
+echo "============================================================"
+echo "JWOFS_BC_PREP_REAL"
+echo "============================================================"
+echo "HOMEwofs       = ${HOMEwofs}"
+echo "CDATE          = ${CDATE}"
+echo "GEFS_INIT      = ${GEFS_INIT}"
+echo "VALID_TIME     = ${VALID_TIME}"
+echo "FCST_HOUR      = ${FCST_HOUR}"
+echo "MEMBER         = ${MEMBER}"
+echo "DATAHOME       = ${DATAHOME}"
+echo "WPSPRD         = ${WPSPRD}"
+echo "WRFPRD        = ${WRFPRD}"
+echo "METGRID_FILE   = ${METGRID_FILE}"
+echo "REAL_EXE       = ${REAL_EXE}"
+echo "WRF_NAMELIST   = ${WRF_NAMELIST}"
+echo "SLURM_NTASKS   = ${SLURM_NTASKS:-UNSET}"
+echo "============================================================"
+
+# ---------------------------------------------------------------------------
+# Run REAL application
+# ---------------------------------------------------------------------------
+
+"${HOMEwofs}/scripts/exwofs_bc_prep_real.sh"
+
+status=$?
+
+if [[ ${status} -ne 0 ]]; then
+    echo "ERROR: exwofs_bc_prep_real.sh failed with status ${status}"
+    exit ${status}
+fi
+
+echo "============================================================"
+echo "JWOFS_BC_PREP_REAL completed successfully."
+echo "============================================================"
+
+date
+
+exit 0

@@ -1,0 +1,44 @@
+WoFS BC_PREP - Parallel NetCDF Ensemble Mean Utility
+====================================================
+
+Requirements
+------------
+- MPI Fortran compiler (Intel mpiifort on NOAA Ursa)
+- NetCDF-C
+- NetCDF-Fortran
+- Parallel-NetCDF
+
+The appropriate platform compiler and library modules must be
+loaded before building.
+
+Build Instructions
+------------------
+1. Load the platform-specific compiler and library modules.
+
+   On NOAA Ursa:
+
+   module use ../../modulefiles
+   module load ursa_bc_prep
+
+2. Clean and rebuild:
+
+   make clean
+   make
+
+3. Verify the installed executable:
+
+   ls -lh ../../exec/average_netcdf_files_parallel.x
+
+The Makefile automatically:
+- Compiles average_netcdf_files_parallel.f90
+- Checks runtime library dependencies
+- Installs average_netcdf_files_parallel.x into ../../exec/
+
+The executable is used by the WoFS BC_PREP MEAN workflow.
+
+Notes
+-----
+The Makefile uses nc-config, nf-config, and pnetcdf-config
+to locate the required libraries.
+
+No user-specific installation paths are hardcoded.
