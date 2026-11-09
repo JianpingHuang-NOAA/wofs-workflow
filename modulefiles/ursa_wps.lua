@@ -14,32 +14,49 @@ whatis("Description: WoFS WPS build/runtime environment on Ursa")
 load("ursa_wrf")
 
 -- WPS GRIB2 compression dependency
-load("jasper/2.0.32")
+local jasper_ver = os.getenv("jasper_ver")
+if not jasper_ver or jasper_ver == "" then
+    LmodError("Missing jasper_ver; source versions/build.ver first")
+end
+load("jasper/" .. jasper_ver)
 
 -- WPS build configuration
 setenv("WRF_EM_CORE", "1")
 setenv("WRF_NMM_CORE", "0")
 
--- Resolve Jasper from the module-provided library search path.
--- Do not use command -v jasper: an active Conda environment may
--- supply an unrelated Jasper executable.
-local jasper_root = nil
-local ld_paths = os.getenv("LD_LIBRARY_PATH") or ""
+-- Resolve Jasper installation using the module definition.
+-- This avoids relying on environment changes during Lmod evaluation.
+local jasper_module = "jasper/" .. jasper_ver
+local jasper_info = capture(
+    "module show " .. jasper_module .. " 2>&1"
+)
 
-for path in string.gmatch(ld_paths, "[^:]+") do
-    if path:match("/jasper%-2%.0%.32[^/]*/lib64$") then
-        jasper_root = path:gsub("/lib64$", "")
-        break
-    end
-end
+local jasper_root = jasper_info:match(
+    'prepend_path%("PATH","([^"]+)/bin"%)'
+)
 
 if not jasper_root then
-    LmodError("Cannot locate Jasper 2.0.32 library directory")
+    LmodError("Cannot determine Jasper installation from " .. jasper_module)
 end
 
 setenv("JASPER", jasper_root)
 setenv("JASPERLIB", jasper_root .. "/lib64")
 setenv("JASPERINC", jasper_root .. "/include")
+
+-- Validate system libpng against the centralized build version.
+local expected_png = os.getenv("wrf_libpng_ver")
+if not expected_png or expected_png == "" then
+    LmodError("Missing wrf_libpng_ver; source versions/build.ver first")
+end
+
+local actual_png = capture(
+    "pkg-config --modversion libpng 2>/dev/null"
+):gsub("%s+$", "")
+
+if actual_png ~= expected_png then
+    LmodError("libpng version mismatch: expected " ..
+              expected_png .. ", found " .. actual_png)
+end
 
 -- Locate system libpng using pkg-config
 local png_lib = capture("pkg-config --variable=libdir libpng 2>/dev/null"):gsub("%s+$", "")

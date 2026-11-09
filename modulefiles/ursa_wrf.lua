@@ -12,16 +12,26 @@ for building WRF with hybrid vertical coordinates.
 whatis("Name: ursa_wrf")
 whatis("Description: WoFS WRF build/runtime environment on Ursa")
 
+-- Dependency versions are provided by versions/build.ver.
+local function required_version(name)
+    local value = os.getenv(name)
+    if not value or value == "" then
+        LmodError("Missing " .. name ..
+                  "; source versions/build.ver before loading ursa_wrf")
+    end
+    return value
+end
+
 -- Compiler and MPI
-load("intel-oneapi-compilers/2023.2.0")
-load("intel-oneapi-mpi/2021.13.1")
+load("intel-oneapi-compilers/" .. required_version("intel_compiler_ver"))
+load("intel-oneapi-mpi/" .. required_version("intel_mpi_ver"))
 
 -- I/O dependencies
-load("netcdf-c/4.9.2")
-load("netcdf-fortran/4.6.1")
-load("hdf5/1.14.3")
-load("parallel-netcdf/1.12.3")
-load("libtirpc/1.3.3")
+load("netcdf-c/" .. required_version("netcdf_c_ver"))
+load("netcdf-fortran/" .. required_version("netcdf_fortran_ver"))
+load("hdf5/" .. required_version("hdf5_ver"))
+load("parallel-netcdf/" .. required_version("parallel_netcdf_ver"))
+load("libtirpc/" .. required_version("libtirpc_ver"))
 
 -- WRF build configuration
 setenv("WRF_EM_CORE", "1")
