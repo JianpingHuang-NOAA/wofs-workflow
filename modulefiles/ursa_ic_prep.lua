@@ -27,6 +27,7 @@ load("netcdf-c/4.9.2")
 
 -- Python runtime for IC_PREP
 -- Provides PyYAML, NumPy, netCDF4, and SciPy on Ursa.
+load("intel-oneapi-mpi/2021.13.1")
 load("python/3.11")
 
 -- IC_PREP utilities
