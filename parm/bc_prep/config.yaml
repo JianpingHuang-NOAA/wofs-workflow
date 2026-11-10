@@ -1,0 +1,86 @@
+# ============================================================================
+# WoFS v1.0 BC_PREP configuration
+#
+# Stages:
+#   UNGRIB -> METGRID -> REAL -> MEAN -> PERTURB
+#
+# Runtime variables:
+#   HOMEwofs       Repository root
+#   DATAROOT       Working-data root
+#   WOFS_PYTHON    Python interpreter with PyYAML
+#   CDATE          WoFS cycle (YYYYMMDDHH)
+#
+# Stage-specific cycle, member, and lead variables are supplied by the
+# workflow rather than fixed in this configuration.
+# ============================================================================
+
+paths:
+  # Empty values are resolved from the runtime environment.
+  homewofs: ""
+  dataroot: ""
+  comroot: ""
+
+  # Relative to DATAROOT.
+  bc_subdir: "WoF_BC"
+  gefs_subdir: "gefs"
+  hrrr_subdir: "pert_hrrr"
+
+gefs:
+  source_dir: "/public/data/grids/gens"
+
+  ensemble_size: 18
+  cycles: 11
+  interval_hours: 3
+
+  # Legacy GEFS initialization is CDATE minus 6 hours.
+  initialization_lag_hours: 6
+
+sst:
+  source_dir: "/public/data/grids/ncep/sst/0p083deg/grib2"
+
+  # Legacy setting; not a replacement for the SST source-date calculation.
+  cycle: "06"
+
+  # Legacy UNGRIB selects the SST source date independently:
+  # GEFS_INIT minus 24 hours, using the source day's 00Z file.
+  source_lag_from_gefs_init_hours: 24
+  source_hour: "00"
+
+hrrr:
+  wrfnat_dir: "/public/data/grids/hrrr/conus/wrfnat/grib2"
+  wrfprs_dir: "/public/data/grids/hrrr/conus/wrfprs/grib2"
+
+ungrib:
+  members: 18
+
+metgrid:
+  mpi_tasks: 40
+  namelist: "namelist.wps.GFSENS"
+
+real:
+  # Existing REAL application currently uses this template.
+  # Member-specific namelist handling requires reconciliation.
+  namelist: "real.nl.32and4levels"
+
+  # Match the existing Slurm REAL allocation.
+  mpi_tasks: 1
+
+mean:
+  mpi_tasks: 40
+  ensemble_size: 18
+  executable: "average_netcdf_files_parallel.x"
+
+perturb:
+  # Current JWOFS_BC_PREP_PERTURB setting.
+  # Verify against the target legacy Rocoto XML before production use.
+  soil_from_wrfprs: 0
+
+  min_file_size: 1000000000
+
+  # Preserve the existing NCL implementation.
+  ncl_script: "perturb_hrrr.ncl"
+  netcdf_to_grib_script: "netcdf_to_grib.py"
+
+  # Legacy GEFS time-search limits.
+  search_before_hours: 6
+  search_after_hours: 6

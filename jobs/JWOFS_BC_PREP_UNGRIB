@@ -1,0 +1,215 @@
+#!/usr/bin/env bash
+# ============================================================================
+# JWOFS_BC_PREP_UNGRIB
+#
+# WoFS v1.0 boundary-condition preparation: UNGRIB stage
+#
+# Called by:
+#   workflow/shell/bc_prep/jwofs_bc_prep_ungrib.sh
+#
+# Executes:
+#   scripts/exwofs_bc_prep_ungrib.sh
+#
+# One invocation processes one GEFS ensemble member.
+# The application script processes GEFS valid times and SST independently.
+# ============================================================================
+
+set -euo pipefail
+
+export PS4='+ ${SECONDS}s: '
+date -u
+
+# ============================================================================
+# Repository location
+# ============================================================================
+
+JOB_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+REPO_ROOT="$(cd -- "${JOB_DIR}/.." && pwd -P)"
+
+export HOMEwofs="${HOMEwofs:-${REPO_ROOT}}"
+
+if [[ ! -r "${HOMEwofs}/ush/load_bc_prep_config.sh" ]]; then
+    echo "ERROR: BC_PREP configuration loader not found."
+    exit 1
+fi
+
+# ============================================================================
+# Load shared BC_PREP configuration
+# ============================================================================
+
+source "${HOMEwofs}/ush/load_bc_prep_config.sh"
+
+# ============================================================================
+# Workflow identification
+# ============================================================================
+
+export NET="${NET:-dev}"
+export RUN="${RUN:-wofs}"
+export wofs_ver="${wofs_ver:-v1.0}"
+
+export subcyc="${subcyc:-00}"
+export SLASH_ENSMEM_SUBDIR="${SLASH_ENSMEM_SUBDIR:-}"
+export ENSMEM_INDX="${ENSMEM_INDX:-##}"
+
+export pid="${pid:-$$}"
+export outid="${outid:-LL${job:-}}"
+
+# ============================================================================
+# Working directories
+# ============================================================================
+
+export DATA="${DATA:-${DATAROOT}}"
+export BC_DATA="${BC_DATA:-${DATAROOT}/WoF_BC}"
+
+mkdir -p "${BC_DATA}"
+
+# ============================================================================
+# Ensemble member
+# ============================================================================
+
+if [[ -z "${MEMBER:-}" ]]; then
+    if [[ -z "${SLURM_ARRAY_TASK_ID:-}" ]]; then
+        echo "ERROR: MEMBER or SLURM_ARRAY_TASK_ID must be defined."
+        exit 1
+    fi
+
+    MEMBER="${SLURM_ARRAY_TASK_ID}"
+fi
+
+if [[ ! "${MEMBER}" =~ ^[0-9]{1,2}$ ]]; then
+    echo "ERROR: Invalid MEMBER=${MEMBER}"
+    exit 1
+fi
+
+MEMBER_NUM=$((10#${MEMBER}))
+
+if (( MEMBER_NUM < 1 || MEMBER_NUM > ENS_SIZE )); then
+    echo "ERROR: MEMBER must be between 1 and ${ENS_SIZE}."
+    exit 1
+fi
+
+export MEMBER
+MEMBER="$(printf '%02d' "${MEMBER_NUM}")"
+export MEMBER
+
+# ============================================================================
+# WoFS cycle
+# ============================================================================
+
+if [[ -n "${CDATE:-}" ]]; then
+
+    if [[ ! "${CDATE}" =~ ^[0-9]{10}$ ]]; then
+        echo "ERROR: CDATE must have YYYYMMDDHH format."
+        exit 1
+    fi
+
+    export PDY="${CDATE:0:8}"
+    export wofs_cyc="${CDATE:8:2}"
+
+else
+
+    export PDY="${PDY:-$(date -u +%Y%m%d)}"
+    export wofs_cyc="${wofs_cyc:-${cyc:-12}}"
+
+    if [[ ! "${PDY}" =~ ^[0-9]{8}$ ||
+          ! "${wofs_cyc}" =~ ^[0-9]{2}$ ]]; then
+        echo "ERROR: Invalid PDY or wofs_cyc."
+        exit 1
+    fi
+
+    export CDATE="${PDY}${wofs_cyc}"
+
+fi
+
+export cyc="${wofs_cyc}"
+export gefs_cyc="${gefs_cyc:-${wofs_cyc}}"
+
+export cycle="${cycle:-t${wofs_cyc}z}"
+export gefs_cycle="${gefs_cycle:-t${gefs_cyc}z}"
+export wofs_cycle="${wofs_cycle:-t${wofs_cyc}z}"
+
+export GEFS_CDATE="${PDY}${gefs_cyc}"
+export SST_CYC="${SST_CYCLE}"
+
+# ============================================================================
+# COM directories
+#
+# COMROOT is optional for UNGRIB. Preserve explicit COMIN/COMOUT values.
+# Do not require compath.py for standalone Ursa execution.
+# ============================================================================
+
+export COMROOT="${COMROOT:-${DATAROOT}/com/wofs/${wofs_ver}}"
+
+export COMIN="${COMIN:-${COMROOT}/wofs.${PDY}}"
+export COMOUT="${COMOUT:-${COMROOT}/wofs.${PDY}/${wofs_cyc}}"
+
+# ============================================================================
+# Validate configuration
+# ============================================================================
+
+for required_var in \
+    HOMEwofs \
+    BC_DATA \
+    GEFS_DIR \
+    HIGHRES_SST_DIR \
+    GEFS_CYCLES \
+    GEFS_INTERVAL \
+    SST_CYCLE \
+    CDATE \
+    MEMBER
+do
+    if [[ -z "${!required_var:-}" ]]; then
+        echo "ERROR: Required variable ${required_var} is empty."
+        exit 1
+    fi
+done
+
+if [[ ! -x "${HOMEwofs}/scripts/exwofs_bc_prep_ungrib.sh" ]]; then
+    echo "ERROR: UNGRIB application is not executable:"
+    echo "  ${HOMEwofs}/scripts/exwofs_bc_prep_ungrib.sh"
+    exit 1
+fi
+
+# ============================================================================
+# Report configuration
+# ============================================================================
+
+echo
+echo "============================================================"
+echo "WoFS BC_PREP UNGRIB"
+echo "============================================================"
+echo "HOMEwofs        = ${HOMEwofs}"
+echo "BC_PREP_CONFIG  = ${BC_PREP_CONFIG}"
+echo "DATAROOT        = ${DATAROOT}"
+echo "BC_DATA         = ${BC_DATA}"
+echo "PDY             = ${PDY}"
+echo "CDATE           = ${CDATE}"
+echo "GEFS_CDATE      = ${GEFS_CDATE}"
+echo "GEFS_DIR        = ${GEFS_DIR}"
+echo "HIGHRES_SST_DIR = ${HIGHRES_SST_DIR}"
+echo "GEFS_CYCLES     = ${GEFS_CYCLES}"
+echo "GEFS_INTERVAL   = ${GEFS_INTERVAL}"
+echo "SST_CYCLE       = ${SST_CYCLE}"
+echo "MEMBER          = ${MEMBER}"
+echo "COMIN           = ${COMIN}"
+echo "COMOUT          = ${COMOUT}"
+echo "============================================================"
+echo
+
+# ============================================================================
+# Execute UNGRIB application
+#
+# Preserve the legacy GEFS valid-time list and independent SST source logic.
+# ============================================================================
+
+"${HOMEwofs}/scripts/exwofs_bc_prep_ungrib.sh"
+
+echo
+echo "============================================================"
+echo "JWOFS_BC_PREP_UNGRIB completed successfully"
+echo "CDATE  = ${CDATE}"
+echo "MEMBER = ${MEMBER}"
+echo "============================================================"
+
+date -u
+exit 0

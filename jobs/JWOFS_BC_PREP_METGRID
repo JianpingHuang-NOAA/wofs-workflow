@@ -1,0 +1,249 @@
+#!/bin/bash
+# ============================================================================
+# JWOFS_BC_PREP_METGRID
+# WoFS v1 boundary-condition preparation METGRID job
+#
+# Purpose:
+#   Prepare and run WPS metgrid.exe for one GEFS ensemble member and one
+#   GEFS forecast valid time.
+#
+# Legacy WoF_BC behavior:
+#
+#   WoFS workflow cycle:
+#     CDATE = 2026100812
+#
+#   GEFS initialization:
+#     GEFS_INIT = CDATE - 6 hours = 2026100806
+#
+#   The GEFS initialization is determined by CDATE and is NOT recalculated
+#   from VALID_TIME.
+#
+#   Legacy GEFS forecast hours:
+#     6 9 12 15 18 21 24 27 30 33 36
+#
+#   Corresponding valid times:
+#     2026100812
+#     2026100815
+#     2026100818
+#     2026100821
+#     2026100900
+#     2026100903
+#     2026100906
+#     2026100909
+#     2026100912
+#     2026100915
+#     2026100918
+#
+#   SST:
+#     All valid times use the GEFS initialization cycle:
+#
+#       .../gefs/${GEFS_INIT}/sst/extprd
+#
+#   Example:
+#
+#     CDATE=2026100812
+#     GEFS_INIT=2026100806
+#
+#     VALID_TIME=2026100812 -> FCST_HOUR=6
+#     VALID_TIME=2026100815 -> FCST_HOUR=9
+#     VALID_TIME=2026100818 -> FCST_HOUR=12
+#     ...
+#     VALID_TIME=2026100918 -> FCST_HOUR=36
+#
+#   Therefore, for all of these valid times:
+#
+#     CONSTANT_PATH =
+#       /scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_BC/gefs/2026100806/sst/extprd
+#
+#   METGRID working directory:
+#     .../gefs/<VALID_TIME>/mem<NN>/wpsprd
+#
+#   METGRID input names:
+#     GFSENS:YYYY-MM-DD_HH
+#     SST
+#     geo_em.d01.nc
+# ============================================================================
+
+set -euo pipefail
+
+export HOMEwofs="${HOMEwofs:-/scratch3/NCEPDEV/wofs/Jianping.Huang/wofs-workflow}"
+
+source "${HOMEwofs}/ush/load_bc_prep_config.sh"
+
+export EXECwofs="${EXECwofs:-${HOMEwofs}/exec}"
+export PARMwofs="${PARMwofs:-${HOMEwofs}/parm}"
+export USHwofs="${USHwofs:-${HOMEwofs}/ush}"
+export FIXwofs="${FIXwofs:-${HOMEwofs}/fix}"
+export SORCwofs="${SORCwofs:-${HOMEwofs}/sorc}"
+
+export NET=dev
+export RUN=wofs
+export wofs_ver=v1.0
+export subcyc=00
+
+# Runtime directories and source configuration are loaded from
+# parm/bc_prep/config.yaml through ush/load_bc_prep_config.sh.
+# Preserve caller-supplied environment overrides.
+export DATA="${DATA:-${DATAROOT}}"
+export BC_DATA="${BC_DATA:-${DATAROOT}/WoF_BC}"
+
+# ----------------------------------------------------------------------------
+# Required environment variables.
+# ----------------------------------------------------------------------------
+export MEMBER="${MEMBER:?ERROR: MEMBER is not set}"
+
+export PDY="${PDY:-$(date -u +%Y%m%d)}"
+export cyc="${cyc:-12}"
+
+export CDATE="${CDATE:-${PDY}${cyc}}"
+export VALID_TIME="${VALID_TIME:?ERROR: VALID_TIME is not set}"
+
+# ----------------------------------------------------------------------------
+# Convert CDATE and VALID_TIME to epoch time.
+# ----------------------------------------------------------------------------
+CDATE_ISO="${CDATE:0:4}-${CDATE:4:2}-${CDATE:6:2} ${CDATE:8:2}:00:00"
+VALID_TIME_ISO="${VALID_TIME:0:4}-${VALID_TIME:4:2}-${VALID_TIME:6:2} ${VALID_TIME:8:2}:00:00"
+
+CDATE_EPOCH=$(date -u -d "${CDATE_ISO}" +%s)
+VALID_TIME_EPOCH=$(date -u -d "${VALID_TIME_ISO}" +%s)
+
+# ----------------------------------------------------------------------------
+# Determine the GEFS initialization cycle from CDATE.
+#
+# Legacy WoF_BC behavior:
+#
+#   GEFS_INIT = CDATE - 6 hours
+#
+# For example:
+#
+#   CDATE=2026100812
+#   GEFS_INIT=2026100806
+#
+# IMPORTANT:
+#   GEFS_INIT must NOT be recalculated from VALID_TIME.
+#   All 11 valid times associated with this WoFS cycle use the same
+#   GEFS initialization and therefore the same SST constant directory.
+# ----------------------------------------------------------------------------
+GEFS_INIT_EPOCH=$((CDATE_EPOCH - 21600))
+
+export GEFS_INIT=$(date -u -d "@${GEFS_INIT_EPOCH}" +%Y%m%d%H)
+
+# ----------------------------------------------------------------------------
+# VALID_TIME must not be earlier than the WoFS CDATE.
+# ----------------------------------------------------------------------------
+if (( VALID_TIME_EPOCH < CDATE_EPOCH )); then
+    echo "ERROR: VALID_TIME ${VALID_TIME} is earlier than CDATE ${CDATE}."
+    exit 1
+fi
+
+# ----------------------------------------------------------------------------
+# Calculate the GEFS forecast hour.
+#
+# Example:
+#
+#   CDATE      = 2026100812
+#   GEFS_INIT  = 2026100806
+#   VALID_TIME = 2026100815
+#
+#   FCST_HOUR = 9
+# ----------------------------------------------------------------------------
+FCST_SECONDS=$((VALID_TIME_EPOCH - GEFS_INIT_EPOCH))
+
+if (( FCST_SECONDS % 3600 != 0 )); then
+    echo "ERROR: VALID_TIME ${VALID_TIME} is not an integer number of hours from GEFS_INIT ${GEFS_INIT}."
+    exit 1
+fi
+
+export FCST_HOUR=$((FCST_SECONDS / 3600))
+
+# ----------------------------------------------------------------------------
+# Legacy WoF_BC forecast-hour range.
+#
+# For a 12Z WoFS cycle:
+#
+#   6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36
+# ----------------------------------------------------------------------------
+if (( FCST_HOUR < 6 || FCST_HOUR > 36 || FCST_HOUR % 3 != 0 )); then
+    echo "ERROR: FCST_HOUR=${FCST_HOUR} is outside the legacy WoF_BC range 6-36 hours at 3-hour intervals."
+    exit 1
+fi
+
+# ----------------------------------------------------------------------------
+# Define working directories.
+#
+# SOURCE_PATH:
+#   Uses the individual VALID_TIME directory.
+#
+# CONSTANT_PATH:
+#   Uses the GEFS initialization cycle determined from CDATE.
+#   This remains unchanged for all 11 forecast times.
+# ----------------------------------------------------------------------------
+export DATAHOME="${BC_DATA}/gefs/${VALID_TIME}/mem${MEMBER}"
+
+export SOURCE_PATH="${DATAHOME}/extprd"
+
+export CONSTANT_PATH="${BC_DATA}/gefs/${GEFS_INIT}/sst/extprd"
+
+# ----------------------------------------------------------------------------
+# WPS configuration.
+# ----------------------------------------------------------------------------
+export WPS_ROOT="${WPS_ROOT:-${EXECwofs}}"
+export STATIC_DIR="${FIXwofs}/WPS"
+export NAMELIST="${STATIC_DIR}/namelist.wps.GFSENS"
+
+export CONSTANTS=SST
+
+# ----------------------------------------------------------------------------
+# METGRID resources.
+# ----------------------------------------------------------------------------
+export METGRID_PROC="${METGRID_PROC:-${SLURM_NTASKS:-40}}"
+
+if [[ -n "${SLURM_NTASKS:-}" ]] &&
+   [[ "${METGRID_PROC}" -ne "${SLURM_NTASKS}" ]]; then
+    echo "ERROR: METGRID_PROC=${METGRID_PROC} differs from SLURM_NTASKS=${SLURM_NTASKS}"
+    exit 1
+fi
+
+# ----------------------------------------------------------------------------
+# Compatibility variables.
+# ----------------------------------------------------------------------------
+export COMIN="${DATAHOME}"
+export COMOUT="${DATAHOME}"
+
+# ----------------------------------------------------------------------------
+# Print run parameters.
+# ----------------------------------------------------------------------------
+echo
+echo "============================================================"
+echo "WoFS v1 BC METGRID"
+echo "============================================================"
+echo "CDATE         = ${CDATE}"
+echo "VALID_TIME    = ${VALID_TIME}"
+echo "GEFS_INIT     = ${GEFS_INIT}"
+echo "FCST_HOUR     = ${FCST_HOUR}"
+echo "MEMBER        = ${MEMBER}"
+echo "DATAHOME      = ${DATAHOME}"
+echo "SOURCE_PATH   = ${SOURCE_PATH}"
+echo "CONSTANT_PATH = ${CONSTANT_PATH}"
+echo "WPS_ROOT      = ${WPS_ROOT}"
+echo "STATIC_DIR    = ${STATIC_DIR}"
+echo "NAMELIST      = ${NAMELIST}"
+echo "METGRID_PROC  = ${METGRID_PROC}"
+echo "============================================================"
+echo
+
+# ----------------------------------------------------------------------------
+# Execute METGRID application script.
+# ----------------------------------------------------------------------------
+"${HOMEwofs}/scripts/exwofs_bc_prep_metgrid.sh"
+
+status=$?
+
+if [[ ${status} -ne 0 ]]; then
+    echo "ERROR: exwofs_bc_prep_metgrid.sh failed with status ${status}"
+    exit ${status}
+fi
+
+echo "JWOFS_BC_PREP_METGRID completed successfully."
+
+exit 0

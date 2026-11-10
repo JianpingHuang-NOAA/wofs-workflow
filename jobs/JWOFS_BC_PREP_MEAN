@@ -1,0 +1,91 @@
+#!/bin/bash
+#
+# JWOFS_BC_PREP_MEAN
+#
+# WoFS v1 Boundary Condition MEAN dispatcher.
+#
+# Called by:
+#   workflow/shell/bc_prep/jwofs_bc_prep_meansh
+#
+# Workflow logic:
+#   scripts/exwofs_bc_prep_mean.sh
+#
+
+set -x
+
+# ----------------------------------------------------------------------
+# WoFS installation
+# ----------------------------------------------------------------------
+
+export HOMEwofs="${HOMEwofs:?HOMEwofs must be defined}"
+
+export USHWOfS="${USHWOfS:-${HOMEwofs}/ush}"
+export FIXWOfS="${FIXWOfS:-${HOMEwofs}/fix}"
+export EXECSWOfS="${EXECSWOfS:-${HOMEwofs}/exec}"
+export PARMWOfS="${PARMWOfS:-${HOMEwofs}/parm}"
+
+# ----------------------------------------------------------------------
+# MEAN stage
+# ----------------------------------------------------------------------
+
+export BC_PREP_STAGE=MEAN
+
+export PDY="${PDY:?PDY must be defined}"
+export cyc="${cyc:?cyc must be defined}"
+
+export CYCLE_TIME="${CYCLE_TIME:-${PDY}${cyc}}"
+
+export DATAROOT="${DATAROOT:-/scratch3/NCEPDEV/stmp/Jianping.Huang}"
+
+export DATAHOME_GEFS="${DATAHOME_GEFS:-${DATAROOT}/WoF_BC/gefs}"
+
+export ENS_SIZE="${ENS_SIZE:-18}"
+export ENSEMBLE_SIZE="${ENSEMBLE_SIZE:-${ENS_SIZE}}"
+
+export MEAN_PROC="${MEAN_PROC:-40}"
+
+# ----------------------------------------------------------------------
+# Diagnostics
+# ----------------------------------------------------------------------
+
+echo
+echo "=============================================================="
+echo " JWOFS_BC_PREP_MEAN"
+echo "=============================================================="
+echo "HOMEwofs        = ${HOMEwofs}"
+echo "PDY             = ${PDY}"
+echo "cyc             = ${cyc}"
+echo "CYCLE_TIME      = ${CYCLE_TIME}"
+echo "BC_PREP_STAGE   = ${BC_PREP_STAGE}"
+echo "ENS_SIZE        = ${ENS_SIZE}"
+echo "ENSEMBLE_SIZE   = ${ENSEMBLE_SIZE}"
+echo "MEAN_PROC       = ${MEAN_PROC}"
+echo "DATAHOME_GEFS   = ${DATAHOME_GEFS}"
+echo "=============================================================="
+echo
+
+# ----------------------------------------------------------------------
+# Run MEAN workflow
+# ----------------------------------------------------------------------
+
+cd "${HOMEwofs}" || exit 1
+
+"${HOMEwofs}/scripts/exwofs_bc_prep_mean.sh"
+status=$?
+
+if [[ ${status} -ne 0 ]]; then
+    echo
+    echo "=============================================================="
+    echo " ERROR: JWOFS_BC_PREP_MEAN FAILED"
+    echo " CYCLE_TIME = ${CYCLE_TIME}"
+    echo " rc         = ${status}"
+    echo "=============================================================="
+    exit ${status}
+fi
+
+echo
+echo "JWOFS_BC_PREP_MEAN completed successfully"
+echo "CYCLE_TIME=${CYCLE_TIME}"
+echo
+
+exit 0
