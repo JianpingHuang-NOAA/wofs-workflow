@@ -1,0 +1,82 @@
+# WoFS v1.0 IC_PREP configuration (Ursa)
+# Paths support ${HOMEwofs}, ${INIT_TIME}, ${PDY}, ${cyc}, ${MEMBER04}, ${FCST_TIME}.
+
+workflow:
+  WOFS_PYTHON: /scratch3/NAGAPE/wof/ywang/conda/wofs_post/bin/python
+  INIT_TIME: "2026110214"
+  stage: POST
+  ens_size: 36
+  domain: 2
+  model: RAP
+  forecast_hour: 1
+  expected_num_fields: 163
+  crtm_enabled: true
+
+paths:
+  dataroot: /scratch3/NCEPDEV/stmp/Jianping.Huang
+  legacy_root: /scratch4/NCEPDEV/fv3-cam/Jianping.Huang/wofsv1.0
+
+  input_root: ${DATAROOT}/WoF_IC/hrrrdas/${INIT_TIME}
+  wrfout_small_dir: ${INPUT_ROOT}
+  wrfinput_static_dir: ${INPUT_ROOT}
+
+  work_root: ${DATAROOT}/wofs_${PDY}_${cyc}_ic_prep
+  download_work_dir: ${INPUT_ROOT}
+  download_script: ${HOMEwofs}/ush/nomads_hrrrdas_download.sh
+
+  static_vars_file: ${HOMEwofs}/parm/ic_prep/static_vars.txt
+  post_work_dir: ${WORK_ROOT}/postprd_mem${MEMBER04}/${FCST_TIME}
+
+  comroot: ${DATAROOT}/com/wofs/v1.0
+  comout: ${COMROOT}/wofs.${PDY}/${cyc}
+  input_output_dir: ${COMOUT}/INPUT
+
+  upp_executable: ${LEGACY_ROOT}/exec/upp.x
+  upp_fix_dir: ${LEGACY_ROOT}/fix/UPP
+  static_wrf_dir: ${LEGACY_ROOT}/fix/WRF
+
+  crtm_fix_dir: /contrib/spack-stack/spack-stack-1.9.1/envs/ue-oneapi-2024.2.1/install/oneapi/2024.2.1/crtm-fix-2.4.0.1_emc-t5jym6r/fix
+
+  ncl_script: ${HOMEwofs}/util/compute_wrf_pressure.ncl
+  itag_template: ${HOMEwofs}/parm/ic_prep/itag.template
+
+  post_avblflds: ${HOMEwofs}/parm/post_avblflds.xml
+  params_grib2_tbl: ${HOMEwofs}/parm/params_grib2_tbl_new
+  postcntrl: ${HOMEwofs}/parm/postcntrl.xml
+  postxconfig: ${HOMEwofs}/parm/postxconfig-NT.txt
+
+  gtg_config: ${LEGACY_ROOT}/fix/UPP/gtg.config.raphrrr
+  eta_micro_lookup: ${LEGACY_ROOT}/fix/WRF/run/ETAMPNEW_DATA
+
+files:
+  wrfout_small: hrrrdas_small_d0${DOMAIN}_${INIT_TIME}00f${FCST_TIME}_mem${MEMBER04}
+  wrfinput_static: hrrr_${INIT_TIME}f001
+
+  final_wrfnat: wrfnat_hrrre_newse_mem${MEMBER04}_${FCST_TIME}.grib2
+  final_wrfprs: wrfprs_mem${MEMBER04}_${FCST_TIME}.grib2
+  final_wrftwo: wrftwo_mem${MEMBER04}_${FCST_TIME}.grib2
+
+runtime:
+  modulefile: ursa_intel
+  mpi_tasks: 160
+  partition: u1-compute
+  qos: debug
+  walltime: '00:30:00'
+  log_dir: ${DATAROOT}/WoF_IC/logs
+
+upp:
+  core: RAPR
+  ioform: netcdf
+  grib: grib2
+  pressure_levels_hpa: [1013.2, 1000, 975, 950, 925, 900, 875, 850, 825, 800, 775, 750, 725, 700, 675, 650, 625, 600, 575, 550, 525, 500, 475, 450, 425, 400, 375, 350, 325, 300, 275, 250, 225, 200, 175, 150, 125, 100, 75, 70, 50, 30, 20, 10, 7, 5, 2]
+
+grid_attributes:
+  WEST-EAST_GRID_DIMENSION: 1800
+  WEST-EAST_PATCH_END_UNSTAG: 1799
+  WEST-EAST_PATCH_END_STAG: 1800
+  SOUTH-NORTH_GRID_DIMENSION: 1060
+  SOUTH-NORTH_PATCH_END_UNSTAG: 1059
+  SOUTH-NORTH_PATCH_END_STAG: 1060
+  MOAD_CEN_LAT: 38.5
+  CEN_LAT: 38.5
+  CEN_LON: -97.5

@@ -1,59 +1,146 @@
-#!/bin/ksh
-set -xa
+#!/usr/bin/env bash
+#
+# WoFS v1.0 IC_PREP - NCO-style J-job
+#
+# Configuration source:
+#   parm/ic_prep/config.yaml
+#
+# Workflow:
+#   jwofs_ic_prep_post.sh
+#       -> JWOFS_IC_PREP
+#           -> exwofs_ic_prep.sh
+#
+
+set -euo pipefail
+
+# ------------------------------------------------------------
+# Required environment
+# ------------------------------------------------------------
+: "${HOMEwofs:?HOMEwofs must be defined}"
+
+export IC_PREP_CONFIG="${IC_PREP_CONFIG:-${HOMEwofs}/parm/ic_prep/config.yaml}"
+export IC_PREP_STAGE="${IC_PREP_STAGE:-POST}"
+
+# ------------------------------------------------------------
+# Standard WoFS/NCO environment
+# ------------------------------------------------------------
+export RUN_ENVIR="${RUN_ENVIR:-nco}"
+export NET="${NET:-wofs}"
+export RUN="${RUN:-wofs}"
+export model="${model:-wofs}"
+export wofs_ver="${wofs_ver:-v1.0}"
+export envir="${envir:-test}"
+
+export SCRIPTWOfS="${HOMEwofs}/scripts"
+export PARMWOfS="${HOMEwofs}/parm"
+export FIXWOfS="${HOMEwofs}/fix"
+export EXECSWOfS="${HOMEwofs}/exec"
+export USHWOfS="${HOMEwofs}/ush"
+export UTILWOfS="${HOMEwofs}/util"
+
+# ------------------------------------------------------------
+# Load YAML configuration
+#
+# The loader exports paths, runtime settings, and UPP
+# parameters as shell environment variables.
+# ------------------------------------------------------------
+CONFIG_LOADER="${USHWOfS}/load_ic_prep_config.py"
+
+if [[ ! -f "${IC_PREP_CONFIG}" ]]; then
+    echo "ERROR: Missing configuration file:" >&2
+    echo "  ${IC_PREP_CONFIG}" >&2
+    exit 1
+fi
+
+if [[ ! -f "${CONFIG_LOADER}" ]]; then
+    echo "ERROR: Missing YAML configuration loader:" >&2
+    echo "  ${CONFIG_LOADER}" >&2
+    exit 1
+fi
+
+# The loader prints shell-safe export statements.
+# Use the Python interpreter selected by the submission script.
+export IC_PREP_PYTHON="${IC_PREP_PYTHON:-$(command -v python3)}"
+
+CONFIG_EXPORTS=$(
+    "${IC_PREP_PYTHON}"         "${CONFIG_LOADER}"         "${IC_PREP_CONFIG}"
+)
+
+eval "${CONFIG_EXPORTS}"
+
+# ------------------------------------------------------------
+# Intel MPI / libfabric runtime
+# ------------------------------------------------------------
+: "${I_MPI_ROOT:?Intel MPI must be loaded}"
+
+LIBFABRIC_DIR="${I_MPI_ROOT}/opt/mpi/libfabric/lib"
+
+if [[ ! -f "${LIBFABRIC_DIR}/libfabric.so.1" ]]; then
+    echo "ERROR: Missing Intel MPI libfabric library:" >&2
+    echo "  ${LIBFABRIC_DIR}/libfabric.so.1" >&2
+    exit 1
+fi
+
+export LD_LIBRARY_PATH="${LIBFABRIC_DIR}:${I_MPI_ROOT}/lib:${LD_LIBRARY_PATH:-}"
+
+export I_MPI_DEBUG=0
+export FI_LOG_LEVEL=error
+
 export MP_IOAGENT_CNT=all
 export MP_IO_BUFFER_SIZE=8M
-export RUN_ENVIR=${RUN_ENVIR:-nco}
-export NET=${NET:-wofs}
-export RUN=${RUN:-wofs}
-export model=${model:-wofs}
-export wofs_ver=${wofs_ver:-v1.0}
-export PDY=${PDY:?PDY must be defined}
-export cyc=${cyc:?cyc must be defined}
-export yyyymmdd=${PDY}
-export HOMEwofs=${HOMEwofs:-${PACKAGEROOT}/wofs.${wofs_ver}}
-export SCRIPTWOfS=${SCRIPTWOfS:-${HOMEwofs}/scripts}
-export PARMWOfS=${PARMWOfS:-${HOMEwofs}/parm}
-export FIXWOfS=${FIXWOfS:-${HOMEwofs}/fix}
-export UPP_FIX_DIR=${UPP_FIX_DIR:-${FIXWOfS}/UPP}
-export EXECSWOfS=${EXECSWOfS:-${HOMEwofs}/exec}
-export USHWOfS=${USHWOfS:-${HOMEwofs}/ush}
-export UTILWOfS=${UTILWOfS:-${HOMEwofs}/util}
-export DATA=${DATA:-${DATAROOT}/wofs_${yyyymmdd}_${cyc}_ic_prep_${envir}}
-export WORK_DIR=${WORK_DIR:-${DATA}/hrrrdas}
-export COMROOT=${COMROOT:-${HOME}/com/wofs/v1.0}
 
-export COMOUT=${COMOUT:-${COMROOT}/wofs.${yyyymmdd}/${cyc}}
-export INPUTDIR=${INPUTDIR:-${COMOUT}/INPUT}
-export EXE_ROOT=${EXE_ROOT:-${HOMEwofs}/exec}
-export NCL_SCRIPTS=${NCL_SCRIPTS:-${HOMEwofs}/util}
-export STATICWRF_DIR=${STATICWRF_DIR:-${HOMEwofs}/fix/WRF}
-export DATAHOME=${DATAHOME:-${DATAROOT}/WoF_IC/hrrrdas/${INIT_TIME}}
-export WRFOUT_SMALL_DIR=${WRFOUT_SMALL_DIR:-${DATAHOME}}
-export WRFINPUT_STATIC_DIR=${WRFINPUT_STATIC_DIR:-${DATAHOME}}
-export DATE=${yyyymmdd}
-export YYYY=${yyyymmdd:0:4}
-export MM=${yyyymmdd:4:2}
-export DD=${yyyymmdd:6:2}
-export HH=${cyc}
-export IC_PREP_STAGE=${IC_PREP_STAGE:?IC_PREP_STAGE must be defined}
-export INIT_TIME=${INIT_TIME:?INIT_TIME must be defined}
-if [[ "${IC_PREP_STAGE}" == "POST" ]]; then
-    export MEMBER=${MEMBER:?MEMBER must be defined}
-    export FCST_TIME=${FCST_TIME:-01}
-    export FHOUR=${FHOUR:-1}
-    export ENS_SIZE=${ENS_SIZE:-36}
-    export DOMAIN=${DOMAIN:-2}
-    export MODEL=${MODEL:-"WRF-RR NMM"}
-    export EXPECTED_NUM_FIELDS=${EXPECTED_NUM_FIELDS:-163}
-    export CRTM=${CRTM:?CRTM must be defined}
-fi
-${SCRIPTWOfS}/exwofs_ic_prep.sh
+# ------------------------------------------------------------
+# Validate configuration
+# ------------------------------------------------------------
+: "${DATA:?DATA must be defined by YAML loader}"
+: "${COMOUT:?COMOUT must be defined by YAML loader}"
+: "${POST_WORK_DIR:?POST_WORK_DIR must be defined by YAML loader}"
+: "${UPP_EXECUTABLE:?UPP_EXECUTABLE must be defined}"
+: "${ITAG_TEMPLATE:?ITAG_TEMPLATE must be defined}"
+
+# ------------------------------------------------------------
+# Prepare runtime directories
+# ------------------------------------------------------------
+mkdir -p "${DATA}"
+mkdir -p "${POST_WORK_DIR}"
+mkdir -p "${COMOUT}/INPUT"
+
+# ------------------------------------------------------------
+# Diagnostics
+# ------------------------------------------------------------
+echo "======================================================"
+echo " WoFS v1.0 IC_PREP - J-job"
+echo "======================================================"
+echo "HOMEwofs        = ${HOMEwofs}"
+echo "IC_PREP_CONFIG  = ${IC_PREP_CONFIG}"
+echo "IC_PREP_STAGE   = ${IC_PREP_STAGE}"
+echo "INIT_TIME       = ${INIT_TIME}"
+echo "MEMBER          = ${MEMBER}"
+echo "PDY             = ${PDY}"
+echo "cyc             = ${cyc}"
+echo "DATA            = ${DATA}"
+echo "POST_WORK_DIR   = ${POST_WORK_DIR}"
+echo "COMOUT          = ${COMOUT}"
+echo "UPP_EXECUTABLE  = ${UPP_EXECUTABLE}"
+echo "ITAG_TEMPLATE = ${ITAG_TEMPLATE}"
+echo "======================================================"
+
+# ------------------------------------------------------------
+# Execute IC_PREP
+# ------------------------------------------------------------
+"${SCRIPTWOfS}/exwofs_ic_prep.sh"
+
 status=$?
-if [[ ${status} -ne 0 ]]; then
-    echo "JWOFS_IC_PREP FAILED"
-    exit ${status}
+
+if (( status != 0 )); then
+    echo "ERROR: JWOFS_IC_PREP failed with status ${status}" >&2
+    exit "${status}"
 fi
-if [[ -n "${jlogfile:-}" ]]; then
-    postmsg "${jlogfile}" "JWOFS_IC_PREP completed normally."
-fi
+
+echo "======================================================"
+echo " JWOFS_IC_PREP completed successfully"
+echo " INIT_TIME = ${INIT_TIME}"
+echo " MEMBER    = ${MEMBER}"
+echo "======================================================"
+
 exit 0

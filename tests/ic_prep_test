@@ -1,0 +1,13 @@
+#sbatch --array=1-36 jwofs_ic_prep_post.sh
+
+cd /scratch3/NCEPDEV/wofs/Jianping.Huang/wofs-workflow
+
+INIT_TIME=2026102814
+JOBID=$(sbatch --parsable \
+    --array=1-36 \
+    --export=ALL,INIT_TIME="${INIT_TIME}" \
+    workflow/shell/ic_prep/jwofs_ic_prep_post.sh)
+echo "Submitted JOBID=${JOBID}"
+
+=======================
+./workflow/shell/ic_prep/submit_wofs_ic_prep.sh 2026102814
