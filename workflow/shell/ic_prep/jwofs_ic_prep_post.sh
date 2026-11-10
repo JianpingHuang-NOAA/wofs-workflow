@@ -14,7 +14,8 @@ set -euo pipefail
 # ------------------------------------------------------------
 # WoFS workflow root
 # ------------------------------------------------------------
-export HOMEwofs="${HOMEwofs:-/scratch3/NCEPDEV/wofs/Jianping.Huang/wofs-workflow}"
+: "${HOMEwofs:?HOMEwofs must be set to the WoFS repository root}"
+export HOMEwofs
 
 export IC_PREP_CONFIG="${IC_PREP_CONFIG:-${HOMEwofs}/parm/ic_prep/config.yaml}"
 export IC_PREP_STAGE=POST
@@ -36,7 +37,16 @@ module load "${wofs_modulefile}"
 # ------------------------------------------------------------
 # Python interpreter for YAML loader
 # ------------------------------------------------------------
-export IC_PREP_PYTHON="${IC_PREP_PYTHON:-/scratch3/NAGAPE/wof/ywang/conda/wofs_post/bin/python}"
+# Resolve Python from the loaded WoFS runtime environment.
+# Do not depend on a developer-specific Conda installation.
+export IC_PREP_PYTHON="$(command -v python3)"
+
+if [[ -z "${IC_PREP_PYTHON}" ]] ||
+   ! "${IC_PREP_PYTHON}" -c \
+       'import yaml, numpy, netCDF4, scipy' >/dev/null 2>&1; then
+    echo "[ERROR] WoFS IC_PREP Python dependencies are unavailable" >&2
+    exit 1
+fi
 
 # ------------------------------------------------------------
 # Execute J-job

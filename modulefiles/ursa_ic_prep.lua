@@ -25,6 +25,10 @@ prepend_path("LD_LIBRARY_PATH", netcdff)
 -- NetCDF runtime dependencies
 load("netcdf-c/4.9.2")
 
+-- Python runtime for IC_PREP
+-- Provides PyYAML, NumPy, netCDF4, and SciPy on Ursa.
+load("python/3.11")
+
 -- IC_PREP utilities
 load("ncl/6.6.2")
 load("nco/5.2.4")

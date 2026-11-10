@@ -25,10 +25,11 @@ com/
 tmp/
 logs/
 
-# Local source checkouts
-sorc/WPS/
-sorc/WRF/
-sorc/GSI/
+# External source repositories managed by Externals.cfg
+/sorc/WRF/
+/sorc/WPS/
+/sorc/UPP/
+/sorc/GSI/
 
 # Credentials
 .env

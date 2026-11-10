@@ -2,7 +2,7 @@
 # Paths support ${HOMEwofs}, ${INIT_TIME}, ${PDY}, ${cyc}, ${MEMBER04}, ${FCST_TIME}.
 
 workflow:
-  WOFS_PYTHON: /scratch3/NAGAPE/wof/ywang/conda/wofs_post/bin/python
+  WOFS_PYTHON: python3
   INIT_TIME: "2026110214"
   stage: POST
   ens_size: 36
@@ -14,7 +14,6 @@ workflow:
 
 paths:
   dataroot: /scratch3/NCEPDEV/stmp/Jianping.Huang
-  legacy_root: /scratch4/NCEPDEV/fv3-cam/Jianping.Huang/wofsv1.0
 
   input_root: ${DATAROOT}/WoF_IC/hrrrdas/${INIT_TIME}
   wrfout_small_dir: ${INPUT_ROOT}
@@ -31,9 +30,9 @@ paths:
   comout: ${COMROOT}/wofs.${PDY}/${cyc}
   input_output_dir: ${COMOUT}/INPUT
 
-  upp_executable: ${LEGACY_ROOT}/exec/upp.x
-  upp_fix_dir: ${LEGACY_ROOT}/fix/UPP
-  static_wrf_dir: ${LEGACY_ROOT}/fix/WRF
+  upp_executable: ${HOMEwofs}/exec/upp.x
+  upp_fix_dir: ${HOMEwofs}/fix/UPP
+  static_wrf_dir: ${HOMEwofs}/fix/WRF
 
   crtm_fix_dir: /contrib/spack-stack/spack-stack-1.9.1/envs/ue-oneapi-2024.2.1/install/oneapi/2024.2.1/crtm-fix-2.4.0.1_emc-t5jym6r/fix
 
@@ -45,8 +44,8 @@ paths:
   postcntrl: ${HOMEwofs}/parm/postcntrl.xml
   postxconfig: ${HOMEwofs}/parm/postxconfig-NT.txt
 
-  gtg_config: ${LEGACY_ROOT}/fix/UPP/gtg.config.raphrrr
-  eta_micro_lookup: ${LEGACY_ROOT}/fix/WRF/run/ETAMPNEW_DATA
+  gtg_config: ${HOMEwofs}/fix/UPP/gtg.config.raphrrr
+  eta_micro_lookup: ${HOMEwofs}/fix/WRF/run/ETAMPNEW_DATA
 
 files:
   wrfout_small: hrrrdas_small_d0${DOMAIN}_${INIT_TIME}00f${FCST_TIME}_mem${MEMBER04}

@@ -65,14 +65,20 @@ CONFIG_LOADER="${HOMEwofs}/ush/load_ic_prep_config.py"
 # The array task will override this value at runtime.
 export MEMBER=1
 
-# Select Python from the current environment.
-# IC_PREP_PYTHON may be explicitly exported by the caller.
-export IC_PREP_PYTHON="${IC_PREP_PYTHON:-$(command -v python3)}"
+# Load the WoFS IC_PREP runtime environment before selecting Python.
+source "${HOMEwofs}/versions/run.ver"
+
+module use "${HOMEwofs}/modulefiles"
+module load "${wofs_modulefile}"
+
+# Resolve Python from the configured module environment.
+export IC_PREP_PYTHON="$(command -v python3)"
 
 if [[ -z "${IC_PREP_PYTHON}" ]] ||
-   ! "${IC_PREP_PYTHON}" -c "import yaml" >/dev/null 2>&1; then
-    echo "ERROR: PyYAML is unavailable in the selected Python environment" >&2
-    echo "Activate an environment containing PyYAML before submitting." >&2
+   ! "${IC_PREP_PYTHON}" -c \
+       'import yaml, numpy, netCDF4, scipy' >/dev/null 2>&1; then
+    echo "[ERROR] WoFS IC_PREP Python dependencies are unavailable" >&2
+    echo "Required packages: PyYAML, NumPy, netCDF4, SciPy." >&2
     exit 1
 fi
 

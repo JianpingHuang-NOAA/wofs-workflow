@@ -7,7 +7,7 @@
 export wofs_ver=v1.0.0
 export wofs_component=ic_prep
 
-export wofs_modulefile=ursa_intel
+export wofs_modulefile=ursa_ic_prep
 
 # Intel runtime environment
 export stack_oneapi_ver=2024.2.1
@@ -18,8 +18,8 @@ export jasper_ver=2.0.32
 export libpng_ver=1.6.37
 
 # IC_PREP Python dependencies
-export python_ver=3.9.18
-export pyyaml_ver=5.4.1
+export python_ver=3.11
+export pyyaml_ver=6.0.2
 
 # GRIB2 utilities
 export wgrib2_ver=3.1.3_wmo
