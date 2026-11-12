@@ -62,8 +62,8 @@ real:
   # Member-specific namelist handling requires reconciliation.
   namelist: "real.nl.32and4levels"
 
-  # Match the existing Slurm REAL allocation.
-  mpi_tasks: 1
+  # Match the validated Slurm REAL allocation.
+  mpi_tasks: 160
 
 mean:
   mpi_tasks: 40

@@ -104,6 +104,24 @@ fi
 #   WRFPRD=${DATAHOME}/wrfprd
 # ---------------------------------------------------------------------------
 
+# Honor configured MPI tasks, retaining the standalone fallback.
+export REAL_NTASKS="${REAL_NTASKS:-${SLURM_NTASKS:-160}}"
+
+if [[ ! "${REAL_NTASKS}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "ERROR: Invalid REAL_NTASKS=${REAL_NTASKS}" >&2
+    exit 1
+fi
+
+if [[ -n "${SLURM_NTASKS:-}" &&
+      "${REAL_NTASKS}" != "${SLURM_NTASKS}" ]]; then
+    echo "ERROR: REAL MPI task mismatch" >&2
+    echo "REAL_NTASKS=${REAL_NTASKS}" >&2
+    echo "SLURM_NTASKS=${SLURM_NTASKS}" >&2
+    exit 1
+fi
+
+echo "[PASS] REAL MPI configuration: ${REAL_NTASKS} tasks"
+
 mkdir -p "${WRFPRD}"
 cd "${WRFPRD}"
 
@@ -358,7 +376,7 @@ echo "  REAL_EXE      = ${REAL_EXE}"
 # Use an if/else construct so the failure can be diagnosed below.
 # ---------------------------------------------------------------------------
 
-REAL_NTASKS="${SLURM_NTASKS:-160}"
+# REAL_NTASKS was initialized and validated before file preparation.
 
 echo
 echo "============================================================"

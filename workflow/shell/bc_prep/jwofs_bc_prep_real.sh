@@ -50,12 +50,39 @@ if [[ ! -r "${WRF_VERSION_FILE}" ]]; then
     exit 1
 fi
 
+source "${HOMEwofs}/versions/bc_prep.ver" || exit 1
 source "${WRF_VERSION_FILE}" || exit 1
 
 export wofs_component=bc_prep
 
 module use "${HOMEwofs}/modulefiles" || exit 1
 module load ursa_wrf || exit 1
+
+# Python runtime for YAML configuration.
+module load "python/${python_ver}" || exit 1
+
+export PYTHONNOUSERSITE=1
+unset PYTHONPATH PYTHONHOME
+
+export WOFS_PYTHON="${WOFS_PYTHON:-$(command -v python3)}"
+
+# Load BC_PREP configuration, preserving environment overrides.
+source "${HOMEwofs}/ush/load_bc_prep_config.sh" || exit 1
+
+# Validate configured MPI tasks against the Slurm allocation.
+if [[ ! "${REAL_NTASKS:-}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "ERROR: Invalid REAL_NTASKS=${REAL_NTASKS:-undefined}" >&2
+    exit 1
+fi
+
+if [[ "${SLURM_NTASKS:-}" != "${REAL_NTASKS}" ]]; then
+    echo "ERROR: REAL MPI task mismatch" >&2
+    echo "REAL_NTASKS=${REAL_NTASKS}" >&2
+    echo "SLURM_NTASKS=${SLURM_NTASKS:-undefined}" >&2
+    exit 1
+fi
+
+echo "[PASS] REAL MPI configuration: ${REAL_NTASKS} tasks"
 
 # Verify the installed REAL executable and runtime libraries.
 REAL_RUNTIME_EXE="${REAL_EXE:-${EXECwofs:-${HOMEwofs}/exec}/real.exe}"
@@ -117,6 +144,7 @@ echo "VALID_TIME = ${VALID_TIME}"
 echo "MEMBER     = ${MEMBER}"
 echo "SLURM_JOB_ID       = ${SLURM_JOB_ID}"
 echo "SLURM_ARRAY_TASK_ID= ${SLURM_ARRAY_TASK_ID}"
+echo "REAL_NTASKS        = ${REAL_NTASKS}"
 echo "SLURM_NTASKS       = ${SLURM_NTASKS}"
 echo "============================================================"
 
