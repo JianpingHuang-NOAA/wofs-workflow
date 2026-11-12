@@ -37,27 +37,29 @@ export HOMEwofs="${HOMEwofs:-${REPO_ROOT}}"
 export DATAROOT="${DATAROOT:-/scratch3/NCEPDEV/stmp/Jianping.Huang}"
 export DATA="${DATA:-${DATAROOT}}"
 
-# WOFS_PYTHON must provide PyYAML.
-# Set this externally in the submission environment.
-export WOFS_PYTHON="${WOFS_PYTHON:-python3}"
+# ============================================================================
+# BC_PREP runtime environment
+# Load runtime modules before parsing YAML configuration.
+# ============================================================================
+
+source "${HOMEwofs}/versions/run.ver"
+source "${HOMEwofs}/versions/bc_prep.ver"
+
+module use "${HOMEwofs}/modulefiles"
+module load "${wofs_modulefile}"
+
+# Preserve an explicitly supplied Python interpreter.
+export WOFS_PYTHON="${WOFS_PYTHON:-$(command -v python3 || true)}"
+
+echo "WOFS_PYTHON = ${WOFS_PYTHON}"
+
+module list
 
 # ============================================================================
 # Load BC_PREP configuration
 # ============================================================================
 
 source "${HOMEwofs}/ush/load_bc_prep_config.sh"
-
-# ============================================================================
-# BC_PREP runtime environment
-# Follow the feature/ic-prep modulefiles/versions convention.
-# ============================================================================
-
-source "${HOMEwofs}/versions/bc_prep.ver"
-
-module use "${HOMEwofs}/modulefiles"
-module load "${wofs_modulefile}"
-
-module list
 
 # ============================================================================
 # WoFS cycle
