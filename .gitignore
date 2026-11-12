@@ -35,3 +35,17 @@ logs/
 .env
 *.pem
 *.key
+
+# Installed WoFS executables
+/exec/*
+!/exec/.gitkeep
+
+# Temporary build staging directories
+/staging/
+
+# Externally staged static data
+/fix/*
+!/fix/.gitkeep
+
+# Temporary backup files
+*.bak_*
