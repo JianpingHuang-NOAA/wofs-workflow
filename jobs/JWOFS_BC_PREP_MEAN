@@ -35,9 +35,11 @@ export cyc="${cyc:?cyc must be defined}"
 
 export CYCLE_TIME="${CYCLE_TIME:-${PDY}${cyc}}"
 
-export DATAROOT="${DATAROOT:-/scratch3/NCEPDEV/stmp/Jianping.Huang}"
+export DATAROOT="${DATAROOT:-${DATA:-}}"
+: "${DATAROOT:?ERROR: DATAROOT or DATA must be defined}"
+export BC_DATA="${BC_DATA:-${DATAROOT}/WoF_BC}"
 
-export DATAHOME_GEFS="${DATAHOME_GEFS:-${DATAROOT}/WoF_BC/gefs}"
+export DATAHOME_GEFS="${DATAHOME_GEFS:-${BC_DATA}/gefs}"
 
 export ENS_SIZE="${ENS_SIZE:-18}"
 export ENSEMBLE_SIZE="${ENSEMBLE_SIZE:-${ENS_SIZE}}"

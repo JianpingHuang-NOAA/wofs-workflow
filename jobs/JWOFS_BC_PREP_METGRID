@@ -53,7 +53,7 @@
 #   Therefore, for all of these valid times:
 #
 #     CONSTANT_PATH =
-#       /scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_BC/gefs/2026100806/sst/extprd
+#       ${DATAHOME_GEFS}/2026100806/sst/extprd
 #
 #   METGRID working directory:
 #     .../gefs/<VALID_TIME>/mem<NN>/wpsprd
@@ -66,7 +66,8 @@
 
 set -euo pipefail
 
-export HOMEwofs="${HOMEwofs:-/scratch3/NCEPDEV/wofs/Jianping.Huang/wofs-workflow}"
+: "${HOMEwofs:?ERROR: HOMEwofs must be defined}"
+export HOMEwofs
 
 source "${HOMEwofs}/ush/load_bc_prep_config.sh"
 
@@ -178,11 +179,11 @@ fi
 #   Uses the GEFS initialization cycle determined from CDATE.
 #   This remains unchanged for all 11 forecast times.
 # ----------------------------------------------------------------------------
-export DATAHOME="${BC_DATA}/gefs/${VALID_TIME}/mem${MEMBER}"
+export DATAHOME="${DATAHOME_GEFS}/${VALID_TIME}/mem${MEMBER}"
 
 export SOURCE_PATH="${DATAHOME}/extprd"
 
-export CONSTANT_PATH="${BC_DATA}/gefs/${GEFS_INIT}/sst/extprd"
+export CONSTANT_PATH="${DATAHOME_GEFS}/${GEFS_INIT}/sst/extprd"
 
 # ----------------------------------------------------------------------------
 # WPS configuration.

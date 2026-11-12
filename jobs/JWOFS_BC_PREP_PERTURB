@@ -65,11 +65,13 @@ FCST_LEAD_TIME=$(printf "%02d" "${FHOUR_NUM}")
 export FCST_LEAD_TIME
 
 # Input locations
-export DATAROOT="${DATAROOT:-/scratch3/NCEPDEV/stmp/Jianping.Huang}"
+export DATAROOT="${DATAROOT:-${DATA:-}}"
+: "${DATAROOT:?ERROR: DATAROOT or DATA must be defined}"
+export BC_DATA="${BC_DATA:-${DATAROOT}/WoF_BC}"
 
-export DATAHOME_GEFS="${DATAHOME_GEFS:-${DATAROOT}/WoF_BC/gefs}"
+export DATAHOME_GEFS="${DATAHOME_GEFS:-${BC_DATA}/gefs}"
 
-export DATAHOME_HRRR="${DATAHOME_HRRR:-${DATAROOT}/WoF_BC/pert_hrrr}"
+export DATAHOME_HRRR="${DATAHOME_HRRR:-${BC_DATA}/pert_hrrr}"
 
 export HRRR_DIR="${HRRR_DIR:-/public/data/grids/hrrr/conus/wrfnat/grib2}"
 

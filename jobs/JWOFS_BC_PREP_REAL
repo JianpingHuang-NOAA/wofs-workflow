@@ -48,8 +48,11 @@ export wofs_ver="${wofs_ver:-v1.0}"
 # Data locations
 # ---------------------------------------------------------------------------
 
-export DATA="${DATA:-/scratch3/NCEPDEV/stmp/Jianping.Huang}"
-export BC_DATA="${BC_DATA:-${DATA}/WoF_BC}"
+export DATAROOT="${DATAROOT:-${DATA:-}}"
+: "${DATAROOT:?ERROR: DATAROOT or DATA must be defined}"
+export DATA="${DATA:-${DATAROOT}}"
+export BC_DATA="${BC_DATA:-${DATAROOT}/WoF_BC}"
+export DATAHOME_GEFS="${DATAHOME_GEFS:-${BC_DATA}/gefs}"
 
 # ---------------------------------------------------------------------------
 # Required environment
@@ -130,7 +133,7 @@ fi
 # Input/output directories
 # ---------------------------------------------------------------------------
 
-export DATAHOME="${BC_DATA}/gefs/${VALID_TIME}/mem${MEMBER}"
+export DATAHOME="${DATAHOME_GEFS}/${VALID_TIME}/mem${MEMBER}"
 
 export WPSPRD="${DATAHOME}/wpsprd"
 export WRFPRD="${DATAHOME}/wrfprd"

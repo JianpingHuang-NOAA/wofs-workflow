@@ -33,7 +33,8 @@ export UNGRIB_EXE="${UNGRIB_EXE:-${EXECwofs}/ungrib.exe}"
 export WPS_NAMELIST="${FIXwofs}/WPS/namelist.wps.GFSENS"
 export SST_VTABLE="${FIXwofs}/WPS/Vtable.SST"
 
-export GEFS_WORK="${BC_DATA}/gefs"
+: "${DATAHOME_GEFS:?ERROR: DATAHOME_GEFS must be defined}"
+export GEFS_WORK="${DATAHOME_GEFS}"
 export LOG_DIR="${BC_DATA}/logs"
 
 # ----------------------------------------------------------------------------
