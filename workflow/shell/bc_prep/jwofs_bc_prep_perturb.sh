@@ -57,17 +57,27 @@ module purge
 module use "${HOMEwofs}/modulefiles"
 module load "${wofs_modulefile}"
 
-# Use the Python interpreter selected by the submission environment.
-: "${WOFS_PYTHON:?ERROR: WOFS_PYTHON must be defined}"
+# Isolate Python from personal and inherited package settings.
+export PYTHONNOUSERSITE=1
+unset PYTHONPATH
+unset PYTHONHOME
 
-if ! "${WOFS_PYTHON}" -c 'import yaml, numpy, netCDF4, pygrib'; then
-    echo "ERROR: Invalid PERTURB Python environment" >&2
+# Use the explicitly selected WoFS Python virtual environment.
+: "${WOFS_PYTHON:?ERROR: WOFS_PYTHON must be defined}"
+export WOFS_PYTHON
+
+echo "WOFS_PYTHON = ${WOFS_PYTHON}"
+echo "PYTHONNOUSERSITE = ${PYTHONNOUSERSITE}"
+
+# Validate the complete BC_PREP Python runtime before computation.
+if ! bash "${HOMEwofs}/tests/check_bc_prep_python.sh" \
+    "${WOFS_PYTHON}"
+then
+    echo "ERROR: Invalid BC_PREP Python runtime" >&2
     exit 1
 fi
 
-echo "WOFS_PYTHON = ${WOFS_PYTHON}"
-
-"${WOFS_PYTHON}" -c 'import pygrib; print("pygrib:", pygrib.__version__); print("ecCodes:", pygrib.eccodes_version)'
+echo "[PASS] PERTURB Python runtime validated"
 
 module list
 

@@ -17,5 +17,14 @@ export scipy_ver=1.15.2
 export pyproj_ver=3.7.2
 export pygrib_ver=2.1.8
 export eccodes_ver=2.44.0
+export python_patch_ver=3.11.12
+export cftime_ver=1.6.5
+export packaging_ver=25.0
+export certifi_ver=2025.4.26
+
+# Native libraries reported by Python packages
+export python_proj_ver=9.5.1
+export python_netcdf_ver=4.9.3
+export python_hdf5_ver=1.14.6
 
 unset _BC_VERSIONS_DIR

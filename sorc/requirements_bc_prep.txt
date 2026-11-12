@@ -1,0 +1,9 @@
+# WoFS v1.0 BC_PREP Python requirements.
+#
+# Install these packages inside the WoFS virtual environment.
+# Other dependencies are inherited from NOAA python/3.11.
+
+pygrib==2.1.8
+pyproj==3.7.2
+netCDF4==1.7.4
+cftime==1.6.5
