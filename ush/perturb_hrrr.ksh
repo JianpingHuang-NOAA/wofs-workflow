@@ -1,11 +1,16 @@
-#!/bin/ksh --login
+#!/bin/ksh
 
-module purge
-module load ncl
-module load nco
-module load wgrib2
+# Runtime modules are initialized by the BC_PREP wrapper.
+: "${WOFS_PYTHON:?ERROR: WOFS_PYTHON must be defined}"
 
-PY=${WOFS_PYTHON:-python}
+PY="${WOFS_PYTHON}"
+
+echo "Python interpreter: ${PY}"
+
+if ! "${PY}" -c 'import numpy, netCDF4, pygrib'; then
+    echo "ERROR: Required Python packages are unavailable" >&2
+    exit 1
+fi
 
 echo "wgrib2 path:"
 which wgrib2
@@ -270,11 +275,55 @@ wgrib2 ${hrrr_file} -not_if "TMP" -not_if "SPFH" -not_if "UGRD" -not_if "VGRD" -
 
 
 # Use python (pygrib) to insert the perturbed values (netcdf) into the grib arrays
-${PY} ${NCL_SCRIPTS}/netcdf_to_grib.py perturbed_hrrr_fields_${FF}.nc TMP_P0_L105_GLC0 TMP_template_${FF}.grib2 TMP_${FF}.grib2
-${PY} ${NCL_SCRIPTS}/netcdf_to_grib.py perturbed_hrrr_fields_${FF}.nc UGRD_P0_L105_GLC0 UGRD_template_${FF}.grib2 UGRD_${FF}.grib2
-${PY} ${NCL_SCRIPTS}/netcdf_to_grib.py perturbed_hrrr_fields_${FF}.nc VGRD_P0_L105_GLC0 VGRD_template_${FF}.grib2 VGRD_${FF}.grib2
-${PY} ${NCL_SCRIPTS}/netcdf_to_grib.py perturbed_hrrr_fields_${FF}.nc SPFH_P0_L105_GLC0 SPFH_template_${FF}.grib2 SPFH_${FF}.grib2
-${PY} ${NCL_SCRIPTS}/netcdf_to_grib.py perturbed_hrrr_fields_${FF}.nc HGT_P0_L105_GLC0 HGT_template_${FF}.grib2 HGT_${FF}.grib2
+for VAR in TMP UGRD VGRD SPFH HGT
+do
+  NCFILE="perturbed_hrrr_fields_${FF}.nc"
+  NCVAR="${VAR}_P0_L105_GLC0"
+  TEMPLATE="${VAR}_template_${FF}.grib2"
+  OUTPUT="${VAR}_${FF}.grib2"
+
+  echo "Converting ${VAR} from NetCDF to GRIB2"
+
+  if [ ! -s "${NCFILE}" ]; then
+    echo "ERROR: Missing NetCDF input: ${NCFILE}" >&2
+    exit 1
+  fi
+
+  if [ ! -s "${TEMPLATE}" ]; then
+    echo "ERROR: Missing GRIB2 template: ${TEMPLATE}" >&2
+    exit 1
+  fi
+
+  # Prevent stale output from masking a failed conversion.
+  rm -f -- "${OUTPUT}" || exit 1
+
+  if ! "${PY}" "${NCL_SCRIPTS}/netcdf_to_grib.py" \
+      "${NCFILE}" "${NCVAR}" "${TEMPLATE}" "${OUTPUT}"
+  then
+    echo "ERROR: Python GRIB2 conversion failed for ${VAR}" >&2
+    exit 1
+  fi
+
+  if [ ! -s "${OUTPUT}" ]; then
+    echo "ERROR: Missing GRIB2 output: ${OUTPUT}" >&2
+    exit 1
+  fi
+
+  TEMPLATE_INV=$(wgrib2 "${TEMPLATE}" -s) || exit 1
+  OUTPUT_INV=$(wgrib2 "${OUTPUT}" -s) || exit 1
+
+  TEMPLATE_COUNT=$(printf '%s\n' "${TEMPLATE_INV}" | grep -c .)
+  OUTPUT_COUNT=$(printf '%s\n' "${OUTPUT_INV}" | grep -c .)
+
+  if [ "${TEMPLATE_COUNT}" -le 0 ] || \
+     [ "${TEMPLATE_COUNT}" -ne "${OUTPUT_COUNT}" ]; then
+    echo "ERROR: GRIB2 record count mismatch for ${VAR}" >&2
+    echo "Template=${TEMPLATE_COUNT}, Output=${OUTPUT_COUNT}" >&2
+    exit 1
+  fi
+
+  echo "[PASS] ${VAR}: ${OUTPUT_COUNT} GRIB2 records"
+done
 
 if [ ${SOIL_FROM_WRFPRS} -eq 1 ]; then
   wgrib2 ${unperturbed_forecast} -not_if "SOILW" -grib unperturbed_no_soilw_${FF}.grib2
@@ -299,7 +348,10 @@ fi
 # Clean up
 ${RM} pert_${FF}_time1.nc
 ${RM} pert_${FF}_time2.nc
-${RM} perturbed_hrrr_fields_${FF}.nc
+if [ "${KEEP_INTERMEDIATE:-NO}" != "YES" ]; then
+  ${RM} perturbed_hrrr_fields_${FF}.nc
+fi
+
 ${RM} ${unperturbed_forecast}
 
 ${RM} TMP_${FF}.grib2
@@ -314,11 +366,16 @@ ${RM} VGRD_other_${FF}.grib2
 ${RM} SPFH_other_${FF}.grib2
 ${RM} HGT_other_${FF}.grib2
 
-${RM} TMP_template_${FF}.grib2
-${RM} UGRD_template_${FF}.grib2
-${RM} VGRD_template_${FF}.grib2
-${RM} SPFH_template_${FF}.grib2
-${RM} HGT_template_${FF}.grib2
+if [ "${KEEP_INTERMEDIATE:-NO}" != "YES" ]; then
+  ${RM} TMP_template_${FF}.grib2
+  ${RM} UGRD_template_${FF}.grib2
+  ${RM} VGRD_template_${FF}.grib2
+  ${RM} SPFH_template_${FF}.grib2
+  ${RM} HGT_template_${FF}.grib2
+else
+  echo "KEEP_INTERMEDIATE=YES"
+  echo "Retaining perturbed NetCDF and GRIB2 templates"
+fi
 
 ${RM} run_ncl_${FF}
 

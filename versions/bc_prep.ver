@@ -10,4 +10,12 @@ source "${_BC_VERSIONS_DIR}/run.ver"
 export wofs_component=bc_prep
 export wofs_modulefile=ursa_bc_prep
 
+# BC_PREP validated Python dependencies
+export numpy_ver=2.2.5
+export netcdf4_python_ver=1.7.4
+export scipy_ver=1.15.2
+export pyproj_ver=3.7.2
+export pygrib_ver=2.1.8
+export eccodes_ver=2.44.0
+
 unset _BC_VERSIONS_DIR

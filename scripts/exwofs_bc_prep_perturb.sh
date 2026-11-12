@@ -139,6 +139,9 @@ if ! cmp -- "${SOURCE_FILE}" "${TEMP_FILE}"; then
     exit 1
 fi
 
+# Preserve source file permissions before publishing.
+chmod --reference="${SOURCE_FILE}" "${TEMP_FILE}"
+
 mv -f -- "${TEMP_FILE}" "${STAGED_FILE}"
 TEMP_FILE=""
 

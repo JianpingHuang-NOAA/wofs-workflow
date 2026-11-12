@@ -50,8 +50,26 @@ export model=wofs
 export DATAHOME="${DATAHOME:-${TEST_ROOT}/pert_hrrr/${START_TIME}/postprd_mem00${MEMBER}}"
 export DATAHOME_GEFS="${DATAHOME_GEFS:?ERROR: DATAHOME_GEFS must be defined}"
 
-# Load legacy scientific dependencies through the utility.
-# Do not source the legacy repository's WRF module list here.
+# Load the standardized BC_PREP runtime environment.
+source "${HOMEwofs}/versions/bc_prep.ver"
+
+module purge
+module use "${HOMEwofs}/modulefiles"
+module load "${wofs_modulefile}"
+
+# Use the Python interpreter selected by the submission environment.
+: "${WOFS_PYTHON:?ERROR: WOFS_PYTHON must be defined}"
+
+if ! "${WOFS_PYTHON}" -c 'import yaml, numpy, netCDF4, pygrib'; then
+    echo "ERROR: Invalid PERTURB Python environment" >&2
+    exit 1
+fi
+
+echo "WOFS_PYTHON = ${WOFS_PYTHON}"
+
+"${WOFS_PYTHON}" -c 'import pygrib; print("pygrib:", pygrib.__version__); print("ecCodes:", pygrib.eccodes_version)'
+
+module list
 
 echo "============================================================"
 echo "WoFS v1.0 BC_PREP PERTURB Slurm job"
