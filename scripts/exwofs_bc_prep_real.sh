@@ -27,7 +27,7 @@
 #   WPSPRD        = .../gefs/${VALID_TIME}/mem${MEMBER}/wpsprd
 #   WRFPRD       = .../gefs/${VALID_TIME}/mem${MEMBER}/wrfprd
 #   METGRID_FILE  = .../wpsprd/met_em.d01.YYYY-MM-DD_HH:00:00.nc
-#   WRF_NAMELIST  = ${FIXwofs}/WRF/namelist.input.memberN
+#   WRF_NAMELIST  = ${FIXwofs}/WRF/real.nl.32and4levels
 #   VALID_TIME    = YYYYMMDDHH
 #
 # Legacy BC_PREP REAL behavior:
@@ -231,7 +231,8 @@ done
 # Preserve that exact legacy BC-PREP REAL behavior.
 # ---------------------------------------------------------------------------
 
-REAL_NAMELIST="${FIXwofs}/WRF/real.nl.32and4levels"
+# Use the namelist selected and validated by the REAL J-job.
+REAL_NAMELIST="${WRF_NAMELIST}"
 
 if [[ ! -s "${REAL_NAMELIST}" ]]; then
     echo "ERROR: Legacy BC-PREP REAL namelist is missing or empty:"

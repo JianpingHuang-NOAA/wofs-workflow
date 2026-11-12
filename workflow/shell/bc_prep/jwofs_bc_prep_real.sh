@@ -42,18 +42,44 @@ export HOMEwofs="${HOMEwofs:-${REPO_ROOT}}"
 # WRF module environment
 # ---------------------------------------------------------------------------
 
-#module use ${HOMEwofs}/modulefiles
-#module load ursa_intel
+# Load the centralized WRF build/runtime environment.
+# Use the same dependency versions as the installed real.exe.
 
-# Load the WRF runtime environment from a configurable module file.
-WRF_MODULE_LIST="${WRF_MODULE_LIST:-${HOMEwofs}/sorc/WRF/module_list}"
+WRF_VERSION_FILE="${HOMEwofs}/versions/build.ver"
 
-if [[ ! -r "${WRF_MODULE_LIST}" ]]; then
-    echo "ERROR: WRF module file not found: ${WRF_MODULE_LIST}" >&2
+if [[ ! -r "${WRF_VERSION_FILE}" ]]; then
+    echo "ERROR: WRF version file not found: ${WRF_VERSION_FILE}" >&2
     exit 1
 fi
 
-source "${WRF_MODULE_LIST}"
+source "${WRF_VERSION_FILE}" || exit 1
+
+export wofs_component=bc_prep
+
+module use "${HOMEwofs}/modulefiles" || exit 1
+module load ursa_wrf || exit 1
+
+# Verify the installed REAL executable and runtime libraries.
+REAL_RUNTIME_EXE="${REAL_EXE:-${EXECwofs:-${HOMEwofs}/exec}/real.exe}"
+
+if [[ ! -x "${REAL_RUNTIME_EXE}" ]]; then
+    echo "ERROR: REAL executable not found: ${REAL_RUNTIME_EXE}" >&2
+    exit 1
+fi
+
+if ! REAL_LDD="$(ldd "${REAL_RUNTIME_EXE}" 2>&1)"; then
+    echo "ERROR: Unable to inspect REAL runtime libraries." >&2
+    echo "${REAL_LDD}" >&2
+    exit 1
+fi
+
+if grep -q "not found" <<< "${REAL_LDD}"; then
+    echo "ERROR: Missing REAL runtime libraries:" >&2
+    echo "${REAL_LDD}" >&2
+    exit 1
+fi
+
+echo "[PASS] REAL runtime library check"
 
 
 # ---------------------------------------------------------------------------

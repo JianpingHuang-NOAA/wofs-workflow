@@ -153,9 +153,9 @@ fi
 # Use the target WoFS WRF namelist template.
 # ---------------------------------------------------------------------------
 
-export MEMBER_NUM=$((10#${MEMBER}))
-export NAMELIST="namelist.input.member${MEMBER_NUM}"
-export WRF_NAMELIST="${FIXwofs}/WRF/${NAMELIST}"
+# Preserve the legacy BC_PREP REAL namelist.
+export NAMELIST="${NAMELIST:-real.nl.32and4levels}"
+export WRF_NAMELIST="${WRF_NAMELIST:-${FIXwofs}/WRF/${NAMELIST}}"
 
 if [[ ! -r "${WRF_NAMELIST}" ]]; then
     echo "ERROR: WRF namelist template not found or not readable:"
