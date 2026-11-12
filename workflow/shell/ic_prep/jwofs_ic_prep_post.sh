@@ -39,7 +39,7 @@ module load "${wofs_modulefile}"
 # ------------------------------------------------------------
 # Resolve Python from the loaded WoFS runtime environment.
 # Do not depend on a developer-specific Conda installation.
-export IC_PREP_PYTHON="$(command -v python3)"
+export IC_PREP_PYTHON="${IC_PREP_PYTHON:-$(command -v python3 || true)}"
 
 if [[ -z "${IC_PREP_PYTHON}" ]] ||
    ! "${IC_PREP_PYTHON}" -c \

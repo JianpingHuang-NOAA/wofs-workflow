@@ -93,7 +93,11 @@ for name, section in (
 # ------------------------------------------------------------
 values = {
     "HOMEwofs": os.environ["HOMEwofs"],
-    "WOFS_PYTHON": workflow.get("WOFS_PYTHON"),
+    "WOFS_PYTHON": (
+        os.environ.get("WOFS_PYTHON")
+        or workflow.get("WOFS_PYTHON")
+        or "python3"
+    ),
     "INIT_TIME": workflow.get("INIT_TIME"),
     "DATAROOT": paths.get("dataroot"),
 }
@@ -206,11 +210,25 @@ source "${ENV_FILE}"
 : "${DOWNLOAD_SCRIPT:?DOWNLOAD_SCRIPT is required}"
 : "${LOG_DIR:?LOG_DIR is required}"
 
-if [[ ! -x "${WOFS_PYTHON}" ]]; then
-    echo "[ERROR] WOFS_PYTHON is not executable:" >&2
-    echo "        ${WOFS_PYTHON}" >&2
+# Resolve either a command name or an absolute executable path.
+PYTHON_REQUESTED="${WOFS_PYTHON}"
+
+WOFS_PYTHON="$(command -v "${PYTHON_REQUESTED}" || true)"
+
+if [[ -z "${WOFS_PYTHON}" || ! -x "${WOFS_PYTHON}" ]]; then
+    echo "[ERROR] Python interpreter unavailable:" >&2
+    echo "        ${PYTHON_REQUESTED}" >&2
     exit 1
 fi
+
+export WOFS_PYTHON
+
+if ! "${WOFS_PYTHON}" -c 'import yaml'; then
+    echo "[ERROR] PyYAML unavailable in ${WOFS_PYTHON}" >&2
+    exit 1
+fi
+
+echo "[PASS] Runtime Python: ${WOFS_PYTHON}"
 
 if [[ ! -f "${DOWNLOAD_SCRIPT}" ]]; then
     echo "[ERROR] Download script not found:" >&2

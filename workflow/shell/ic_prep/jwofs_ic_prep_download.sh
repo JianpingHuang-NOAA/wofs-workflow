@@ -22,7 +22,17 @@ set -euo pipefail
 # ------------------------------------------------------------
 # 1. Define workflow root
 # ------------------------------------------------------------
-export HOMEwofs="${HOMEwofs:-/scratch3/NCEPDEV/wofs/Jianping.Huang/wofs-workflow}"
+: "${HOMEwofs:?HOMEwofs must be set to the WoFS repository root}"
+
+export HOMEwofs
+
+# Locate the IC_PREP configuration.
+export IC_PREP_CONFIG="${IC_PREP_CONFIG:-${HOMEwofs}/parm/ic_prep/config.yaml}"
+
+if [[ ! -r "${IC_PREP_CONFIG}" ]]; then
+    echo "[ERROR] Configuration file not found: ${IC_PREP_CONFIG}" >&2
+    exit 1
+fi
 
 # ------------------------------------------------------------
 # 2. Initialize environment modules
@@ -35,9 +45,49 @@ if ! type module >/dev/null 2>&1; then
     fi
 fi
 
-# Load additional modules here if required by download script.
-# Example:
-# module load python
+# Load centralized runtime version definitions.
+VERSION_FILE="${HOMEwofs}/versions/run.ver"
+
+if [[ ! -r "${VERSION_FILE}" ]]; then
+    echo "[ERROR] Runtime version file not found: ${VERSION_FILE}" >&2
+    exit 1
+fi
+
+source "${VERSION_FILE}"
+
+# ------------------------------------------------------------
+# Initialize Python for the YAML configuration loader.
+# ------------------------------------------------------------
+if [[ -z "${WOFS_PYTHON:-}" ]]; then
+
+    if ! type module >/dev/null 2>&1; then
+        echo "[ERROR] Environment modules unavailable" >&2
+        exit 1
+    fi
+
+    : "${python_ver:?python_ver must be defined in run.ver}"
+
+    module load "python/${python_ver}"
+
+    export WOFS_PYTHON="$(command -v python3 || true)"
+
+fi
+
+if [[ -z "${WOFS_PYTHON:-}" ]]; then
+    echo "[ERROR] Python interpreter unavailable" >&2
+    exit 1
+fi
+
+if ! "${WOFS_PYTHON}" -c 'import yaml'; then
+    echo "[ERROR] PyYAML unavailable in ${WOFS_PYTHON}" >&2
+    exit 1
+fi
+
+echo "[PASS] DOWNLOAD Python environment validated"
+echo "WOFS_PYTHON: ${WOFS_PYTHON}"
+
+"${WOFS_PYTHON}" -c 'import yaml; print("PyYAML:", yaml.__version__)'
+
 
 # ------------------------------------------------------------
 # 3. Locate download job
@@ -56,6 +106,7 @@ echo "WoFS IC_PREP - HRRRDAS Download"
 echo "=========================================="
 echo "HOMEwofs       : ${HOMEwofs}"
 echo "IC_PREP_CONFIG : ${IC_PREP_CONFIG}"
+echo "wofs_ver       : ${wofs_ver:-undefined}"
 echo "JOB_SCRIPT     : ${JOB_SCRIPT}"
 echo "SLURM_JOB_ID   : ${SLURM_JOB_ID:-N/A}"
 echo "=========================================="
