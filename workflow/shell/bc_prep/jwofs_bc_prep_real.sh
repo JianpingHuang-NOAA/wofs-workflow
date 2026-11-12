@@ -30,13 +30,11 @@
 #SBATCH --mem=300G
 #SBATCH -t 00:10:00
 #SBATCH --array=1-18
-#SBATCH -o /scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_BC/logs/wofs_bc_real_%A_%a.out
-#SBATCH -e /scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_BC/logs/wofs_bc_real_%A_%a.err
+#SBATCH -o wofs_bc_real_%A_%a.out
+#SBATCH -e wofs_bc_real_%A_%a.err
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd -P)"
-
-export HOMEwofs="${HOMEwofs:-${REPO_ROOT}}"
+: "${HOMEwofs:?ERROR: HOMEwofs must be exported before submission}"
+export HOMEwofs
 
 # ---------------------------------------------------------------------------
 # WRF module environment

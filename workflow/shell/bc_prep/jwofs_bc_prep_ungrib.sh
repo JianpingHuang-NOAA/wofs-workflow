@@ -6,8 +6,8 @@
 #SBATCH -t 00:10:00
 #SBATCH --mem-per-cpu=6G
 #SBATCH --array=1-18
-#SBATCH -o /scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_BC/logs/wofs_bc_ungrib_%A_%a.out
-#SBATCH -e /scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_BC/logs/wofs_bc_ungrib_%A_%a.err
+#SBATCH -o wofs_bc_ungrib_%A_%a.out
+#SBATCH -e wofs_bc_ungrib_%A_%a.err
 
 # ============================================================================
 # WoFS v1.0 BC_PREP UNGRIB Slurm wrapper
@@ -25,16 +25,15 @@ set -euo pipefail
 # Repository location
 # ============================================================================
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd -P)"
-
-export HOMEwofs="${HOMEwofs:-${REPO_ROOT}}"
+: "${HOMEwofs:?ERROR: HOMEwofs must be exported before submission}"
+export HOMEwofs
 
 # ============================================================================
 # Runtime configuration
 # ============================================================================
 
-export DATAROOT="${DATAROOT:-/scratch3/NCEPDEV/stmp/Jianping.Huang}"
+export DATAROOT="${DATAROOT:-${DATA:-}}"
+: "${DATAROOT:?ERROR: DATAROOT or DATA must be exported before submission}"
 export DATA="${DATA:-${DATAROOT}}"
 
 # ============================================================================

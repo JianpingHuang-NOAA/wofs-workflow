@@ -26,8 +26,8 @@
 #SBATCH -t 00:10:00
 #SBATCH --mem=32G
 #SBATCH --array=1-18
-#SBATCH -o /scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_BC/logs/wofs_bc_metgrid_%A_%a.out
-#SBATCH -e /scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_BC/logs/wofs_bc_metgrid_%A_%a.err
+#SBATCH -o wofs_bc_metgrid_%A_%a.out
+#SBATCH -e wofs_bc_metgrid_%A_%a.err
 
 set -euo pipefail
 
