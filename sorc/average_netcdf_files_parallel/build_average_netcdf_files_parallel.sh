@@ -60,4 +60,3 @@ sha256sum "$HOMEwofs/exec/average_netcdf_files_parallel.x"
 
 echo
 echo "[SUCCESS] Ensemble mean utility build completed."
-
