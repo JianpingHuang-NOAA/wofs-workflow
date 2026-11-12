@@ -86,6 +86,67 @@ TARGET_FILE="${COMOUT}/${FILENAME}"
 [[ "$COMROOT" == /* && "$COMROOT" != / ]] ||
     die "COMROOT must be an absolute non-root path"
 
+[[ "$DATAHOME" == /* && "$DATAHOME" != / ]] ||
+    die "DATAHOME must be an absolute non-root path"
+
+[[ ! -L "$SOURCE_FILE" ]] ||
+    die "Refusing symbolic-link source: $SOURCE_FILE"
+
+# Protect historical outputs and isolated regression directories.
+DATAHOME_RESOLVED=$(realpath -m -- "$DATAHOME")
+COMROOT_RESOLVED=$(realpath -m -- "$COMROOT")
+COMOUT_RESOLVED=$(realpath -m -- "$COMOUT")
+
+[[ "$COMROOT_RESOLVED" != / ]] ||
+    die "Resolved COMROOT must not be root"
+
+[[ "$DATAHOME_RESOLVED" != / ]] ||
+    die "Resolved DATAHOME must not be root"
+
+HISTORICAL_PERTURB_ROOT="/scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_BC/pert_hrrr"
+HISTORICAL_COMROOT="/scratch3/NCEPDEV/stmp/Jianping.Huang/com/wofs/v1.0"
+
+HIST_PERTURB_RESOLVED=$(realpath -m -- "$HISTORICAL_PERTURB_ROOT")
+HIST_COM_RESOLVED=$(realpath -m -- "$HISTORICAL_COMROOT")
+
+for DIR in "$DATAHOME_RESOLVED" "$COMROOT_RESOLVED" "$COMOUT_RESOLVED"
+do
+    case "${DIR}/" in
+        "${HIST_PERTURB_RESOLVED}/"*|"${HIST_COM_RESOLVED}/"*)
+            die "Path points into historical outputs: $DIR"
+            ;;
+    esac
+done
+
+# COMOUT must remain within the configured COMROOT.
+case "${COMOUT_RESOLVED}/" in
+    "${COMROOT_RESOLVED}/"*) ;;
+    *)
+        die "Resolved COMOUT is outside COMROOT"
+        ;;
+esac
+
+# Enforce regression isolation when TEST_ROOT is configured.
+if [[ -n "${TEST_ROOT:-}" ]]; then
+
+    TEST_ROOT_RESOLVED=$(realpath -e -- "$TEST_ROOT") ||
+        die "Invalid TEST_ROOT"
+
+    [[ -d "$TEST_ROOT_RESOLVED" && "$TEST_ROOT_RESOLVED" != / ]] ||
+        die "Invalid TEST_ROOT directory"
+
+    for DIR in "$DATAHOME_RESOLVED" "$COMROOT_RESOLVED" "$COMOUT_RESOLVED"
+    do
+        case "${DIR}/" in
+            "${TEST_ROOT_RESOLVED}/"*) ;;
+            *)
+                die "Path is outside TEST_ROOT: $DIR"
+                ;;
+        esac
+    done
+
+fi
+
 mkdir -p -- "$COMOUT"
 
 if [[ -L "$TARGET_FILE" ]]; then

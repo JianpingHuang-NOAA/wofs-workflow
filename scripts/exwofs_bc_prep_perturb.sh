@@ -89,9 +89,28 @@ case "${COMROOT_RESOLVED}/" in
 esac
 
 UTILITY="${HOMEwofs}/ush/perturb_hrrr.ksh"
+STAGER="${HOMEwofs}/ush/stage_bc_perturb.sh"
 
-[[ -f "${UTILITY}" ]] || {
-    echo "ERROR: Missing utility: ${UTILITY}"
+[[ -x "${UTILITY}" ]] || {
+    echo "ERROR: Missing or non-executable utility: ${UTILITY}"
+    exit 1
+}
+
+[[ -x "${STAGER}" ]] || {
+    echo "ERROR: Missing or non-executable staging utility: ${STAGER}"
+    exit 1
+}
+
+export SENDCOM="${SENDCOM:-YES}"
+export COM_OVERWRITE="${COM_OVERWRITE:-NO}"
+
+[[ "${SENDCOM}" == YES || "${SENDCOM}" == NO ]] || {
+    echo "ERROR: Invalid SENDCOM"
+    exit 1
+}
+
+[[ "${COM_OVERWRITE}" == YES || "${COM_OVERWRITE}" == NO ]] || {
+    echo "ERROR: Invalid COM_OVERWRITE"
     exit 1
 }
 
@@ -118,39 +137,20 @@ fi
 
 ls -lh "${SOURCE_FILE}"
 
-# Stage into isolated COM using a verified temporary file.
-mkdir -p "${COMOUT}"
+# Publish through the shared BC_PREP staging utility.
+echo "SENDCOM          = ${SENDCOM}"
+echo "COM_OVERWRITE    = ${COM_OVERWRITE}"
 
-STAGED_FILE="${COMOUT}/$(basename "${SOURCE_FILE}")"
-TEMP_FILE=$(mktemp "${STAGED_FILE}.tmp.XXXXXXXX")
-
-cleanup_staging() {
-    if [[ -n "${TEMP_FILE:-}" ]]; then
-        rm -f -- "${TEMP_FILE}"
-    fi
-}
-trap cleanup_staging EXIT
-
-cp -- "${SOURCE_FILE}" "${TEMP_FILE}"
-
-# Verify the entire file before publishing.
-if ! cmp -- "${SOURCE_FILE}" "${TEMP_FILE}"; then
-    echo "ERROR: Staged copy differs from the working GRIB2"
-    exit 1
-fi
-
-# Preserve source file permissions before publishing.
-chmod --reference="${SOURCE_FILE}" "${TEMP_FILE}"
-
-mv -f -- "${TEMP_FILE}" "${STAGED_FILE}"
-TEMP_FILE=""
-
-[[ -s "${STAGED_FILE}" ]] || {
-    echo "ERROR: Staged PERTURB output is missing or empty"
-    exit 1
-}
+"${STAGER}"
 
 echo "============================================================"
 echo "PERTURB completed successfully"
-echo "Staged output: ${STAGED_FILE}"
+
+if [[ "${SENDCOM}" == YES ]]; then
+    echo "Staged output: ${COMOUT}/$(basename "${SOURCE_FILE}")"
+else
+    echo "COM publication skipped: SENDCOM=NO"
+    echo "Working output: ${SOURCE_FILE}"
+fi
+
 echo "============================================================"

@@ -122,6 +122,12 @@ export BC_DATA="${BC_DATA:-${DATAROOT}/WoF_BC}"
 export DATAHOME_GEFS="${DATAHOME_GEFS:-${BC_DATA}/gefs}"
 export DATAHOME_HRRR="${DATAHOME_HRRR:-${BC_DATA}/pert_hrrr}"
 
+# Standard WoFS COM publication settings.
+# PERTURB requires an explicitly configured COMROOT.
+export SENDCOM="${SENDCOM:-YES}"
+export COM_OVERWRITE="${COM_OVERWRITE:-NO}"
+
+
 export EXECwofs="${EXECwofs:-${HOMEwofs}/exec}"
 export PARMwofs="${PARMwofs:-${HOMEwofs}/parm}"
 export USHwofs="${USHwofs:-${HOMEwofs}/ush}"
