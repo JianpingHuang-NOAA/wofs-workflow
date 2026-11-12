@@ -121,6 +121,13 @@ fi
 
 MEAN_DIR="${WORK_ROOT}/mean"
 MEAN_FILE="${MEAN_DIR}/wrfinput_d01"
+MEAN_FINISHED="${MEAN_DIR}/mean_finished"
+
+if [[ ! -f "${MEAN_FINISHED}" ]]; then
+    echo "ERROR: MEAN completion marker is missing:"
+    echo "       ${MEAN_FINISHED}"
+    exit 1
+fi
 
 if [[ ! -s "${MEAN_FILE}" ]]; then
     echo
