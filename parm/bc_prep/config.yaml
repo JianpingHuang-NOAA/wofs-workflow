@@ -10,17 +10,22 @@
 #   WOFS_PYTHON    Python interpreter with PyYAML
 #   CDATE          WoFS cycle (YYYYMMDDHH)
 #
+# Configuration policy:
+#   Fixed scientific settings are validated by the loader.
+#   Runtime settings may be overridden by environment variables.
+#   Unsupported scientific settings are rejected.
+#
 # Stage-specific cycle, member, and lead variables are supplied by the
 # workflow rather than fixed in this configuration.
 # ============================================================================
 
 paths:
-  # Empty values are resolved from the runtime environment.
+  # Documentary placeholders; runtime paths come from the environment.
   homewofs: ""
   dataroot: ""
   comroot: ""
 
-  # Relative to DATAROOT.
+  # Fixed default directory suffixes.
   bc_subdir: "WoF_BC"
   gefs_subdir: "gefs"
   hrrr_subdir: "pert_hrrr"
@@ -28,6 +33,7 @@ paths:
 gefs:
   source_dir: "/public/data/grids/gens"
 
+  # Fixed WoFS v1.0 boundary ensemble and GEFS schedule.
   ensemble_size: 18
   cycles: 11
   interval_hours: 3
@@ -51,6 +57,7 @@ hrrr:
   wrfprs_dir: "/public/data/grids/hrrr/conus/wrfprs/grib2"
 
 ungrib:
+  # Must agree with gefs.ensemble_size.
   members: 18
 
 metgrid:
@@ -58,8 +65,8 @@ metgrid:
   namelist: "namelist.wps.GFSENS"
 
 real:
-  # Existing REAL application currently uses this template.
-  # Member-specific namelist handling requires reconciliation.
+  # Default template confirmed against legacy Rocoto XML.
+  # The existing runtime namelist override remains supported.
   namelist: "real.nl.32and4levels"
 
   # Match the validated Slurm REAL allocation.
@@ -85,10 +92,11 @@ perturb:
   protected_work_root: ""
   protected_com_root: ""
 
-  # Current JWOFS_BC_PREP_PERTURB setting.
-  # Verify against the target legacy Rocoto XML before production use.
+  # Legacy operational and regression XML both specify 0.
+  # Values 0 and 1 are supported; regression validation used 0.
   soil_from_wrfprs: 0
 
+  # Legacy Rocoto minimum GRIB2 file size in bytes.
   min_file_size: 1000000000
 
   # Preserve the existing NCL implementation.

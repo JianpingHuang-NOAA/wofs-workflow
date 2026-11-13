@@ -64,6 +64,40 @@ with open(sys.argv[1], encoding="utf-8") as stream:
 if not isinstance(cfg, dict):
     raise ValueError("BC_PREP configuration must be a mapping")
 
+
+# Fixed scientific constraints for the validated WoFS v1.0 workflow.
+# These settings describe the implementation, not independent runtime knobs.
+fixed_constraints = {
+    ("paths", "bc_subdir"): "WoF_BC",
+    ("paths", "gefs_subdir"): "gefs",
+    ("paths", "hrrr_subdir"): "pert_hrrr",
+    ("gefs", "ensemble_size"): 18,
+    ("gefs", "cycles"): 11,
+    ("gefs", "interval_hours"): 3,
+    ("gefs", "initialization_lag_hours"): 6,
+    ("sst", "cycle"): "06",
+    ("sst", "source_lag_from_gefs_init_hours"): 24,
+    ("sst", "source_hour"): "00",
+    ("ungrib", "members"): 18,
+    ("metgrid", "namelist"): "namelist.wps.GFSENS",
+    ("real", "namelist"): "real.nl.32and4levels",
+    ("mean", "ensemble_size"): 18,
+    ("mean", "executable"): "average_netcdf_files_parallel.x",
+    ("perturb", "ncl_script"): "perturb_hrrr.ncl",
+    ("perturb", "netcdf_to_grib_script"): "netcdf_to_grib.py",
+    ("perturb", "search_before_hours"): 6,
+    ("perturb", "search_after_hours"): 6,
+}
+
+for (section, key), expected in fixed_constraints.items():
+    value = cfg[section][key]
+
+    if type(value) is not type(expected) or value != expected:
+        raise ValueError(
+            f"Unsupported WoFS v1.0 setting: "
+            f"{section}.{key}={value!r}; expected {expected!r}"
+        )
+
 mapping = {
     "GEFS_DIR": ("gefs", "source_dir"),
     "GEFS_CYCLES": ("gefs", "cycles"),
@@ -134,6 +168,53 @@ esac
 
 export ENSEMBLE_SIZE="${ENSEMBLE_SIZE:-${ENS_SIZE}}"
 
+# Validate effective runtime settings after environment overrides.
+# WoFS v1.0 uses a fixed 18-member GEFS boundary ensemble.
+if [[ "${ENS_SIZE}" != "18" ||
+      "${ENSEMBLE_SIZE}" != "18" ]]; then
+    echo "ERROR: WoFS v1.0 requires 18 BC_PREP members." >&2
+    echo "ENS_SIZE=${ENS_SIZE}" >&2
+    echo "ENSEMBLE_SIZE=${ENSEMBLE_SIZE}" >&2
+    return 1
+fi
+
+# Preserve the validated GEFS forecast schedule.
+if [[ "${GEFS_CYCLES}" != "11" ||
+      "${GEFS_INTERVAL}" != "3" ]]; then
+    echo "ERROR: Unsupported WoFS v1.0 GEFS schedule." >&2
+    echo "GEFS_CYCLES=${GEFS_CYCLES}; expected 11" >&2
+    echo "GEFS_INTERVAL=${GEFS_INTERVAL}; expected 3" >&2
+    return 1
+fi
+
+# SST_CYCLE is a legacy setting, not the SST source-file hour.
+if [[ "${SST_CYCLE}" != "06" ]]; then
+    echo "ERROR: SST_CYCLE must be 06 for WoFS v1.0." >&2
+    return 1
+fi
+
+# Computational resources remain configurable.
+for _bc_name in METGRID_PROC REAL_NTASKS MEAN_PROC MIN_FILE_SIZE
+do
+    if [[ ! "${!_bc_name}" =~ ^[1-9][0-9]*$ ]]; then
+        echo "ERROR: ${_bc_name} must be a positive integer." >&2
+        echo "${_bc_name}=${!_bc_name}" >&2
+        return 1
+    fi
+done
+
+case "${SOIL_FROM_WRFPRS}" in
+    0|1) ;;
+    *)
+        echo "ERROR: SOIL_FROM_WRFPRS must be 0 or 1." >&2
+        return 1
+        ;;
+esac
+
+echo "[PASS] WoFS v1.0 BC_PREP scientific constraints"
+echo "[PASS] BC_PREP runtime resource configuration"
+
+
 # Runtime paths. Do not insert user-specific machine paths here.
 export DATAROOT="${DATAROOT:-${DATA:-}}"
 
@@ -150,6 +231,17 @@ export DATAHOME_HRRR="${DATAHOME_HRRR:-${BC_DATA}/pert_hrrr}"
 # PERTURB requires an explicitly configured COMROOT.
 export SENDCOM="${SENDCOM:-YES}"
 export COM_OVERWRITE="${COM_OVERWRITE:-NO}"
+
+for _bc_name in SENDCOM COM_OVERWRITE
+do
+    case "${!_bc_name}" in
+        YES|NO) ;;
+        *)
+            echo "ERROR: ${_bc_name} must be YES or NO." >&2
+            return 1
+            ;;
+    esac
+done
 
 
 export EXECwofs="${EXECwofs:-${HOMEwofs}/exec}"
