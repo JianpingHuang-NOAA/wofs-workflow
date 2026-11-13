@@ -3,6 +3,11 @@
 # Publish one BC_PREP GRIB2 product into the WoFS COM directory.
 #
 # Required environment:
+#   HOMEwofs
+#   START_TIME
+#   BC_PREP_MODE and mode-specific output configuration
+#   BC_PROTECTED_WORK_ROOT
+#   BC_PROTECTED_COM_ROOT
 #   COMROOT
 #   WOF_CYCLE_TIME
 #   DATAHOME
@@ -35,6 +40,17 @@ die() {
 [[ "$COM_OVERWRITE" == YES || "$COM_OVERWRITE" == NO ]] ||
     die "Invalid COM_OVERWRITE"
 
+# Use the same path policy as the J-job and isolated runner.
+: "${HOMEwofs:?ERROR: HOMEwofs is required}"
+
+VALIDATOR="${HOMEwofs}/ush/validate_bc_perturb_paths.sh"
+
+[[ -x "$VALIDATOR" ]] ||
+    die "Missing path validator: $VALIDATOR"
+
+"$VALIDATOR"
+
+# Even when publication is disabled, validate the configuration.
 if [[ "$SENDCOM" == NO ]]; then
     echo "[SKIP] SENDCOM=NO"
     exit 0
@@ -83,71 +99,137 @@ TARGET_FILE="${COMOUT}/${FILENAME}"
 [[ -f "$SOURCE_FILE" && -s "$SOURCE_FILE" ]] ||
     die "Missing or empty source: $SOURCE_FILE"
 
-[[ "$COMROOT" == /* && "$COMROOT" != / ]] ||
-    die "COMROOT must be an absolute non-root path"
+# The shared validator has already checked:
+#   - regression or operational execution mode
+#   - authorized and protected output roots
+#   - canonical work and COM path containment
+#   - source and target file types
+#
+# Recheck immediately before creating the COM directory.
 
-[[ "$DATAHOME" == /* && "$DATAHOME" != / ]] ||
-    die "DATAHOME must be an absolute non-root path"
+"$VALIDATOR"
 
-[[ ! -L "$SOURCE_FILE" ]] ||
-    die "Refusing symbolic-link source: $SOURCE_FILE"
+[[ -f "$SOURCE_FILE" && ! -L "$SOURCE_FILE" &&
+   -s "$SOURCE_FILE" ]] ||
+    die "Missing, empty, or unsafe source file: $SOURCE_FILE"
 
-# Protect historical outputs and isolated regression directories.
-DATAHOME_RESOLVED=$(realpath -m -- "$DATAHOME")
-COMROOT_RESOLVED=$(realpath -m -- "$COMROOT")
-COMOUT_RESOLVED=$(realpath -m -- "$COMOUT")
+[[ "$(stat -c '%h' "$SOURCE_FILE")" == 1 ]] ||
+    die "Working source has multiple hard links"
 
-[[ "$COMROOT_RESOLVED" != / ]] ||
-    die "Resolved COMROOT must not be root"
+mkdir -p -- "$COMOUT"
 
-[[ "$DATAHOME_RESOLVED" != / ]] ||
-    die "Resolved DATAHOME must not be root"
+# Revalidate after creating the destination directory.
+"$VALIDATOR"
 
-HISTORICAL_PERTURB_ROOT="/scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_BC/pert_hrrr"
-HISTORICAL_COMROOT="/scratch3/NCEPDEV/stmp/Jianping.Huang/com/wofs/v1.0"
+# Resolve aliases before constructing the persistent COM lock.
+COMOUT=$(realpath -e -- "$COMOUT")
+TARGET_FILE="${COMOUT}/${FILENAME}"
 
-HIST_PERTURB_RESOLVED=$(realpath -m -- "$HISTORICAL_PERTURB_ROOT")
-HIST_COM_RESOLVED=$(realpath -m -- "$HISTORICAL_COMROOT")
+# Different working directories can publish the same COM target.
+# Serialize publication using a separate persistent target lock.
+LOCK_FILE="${COMOUT}/.${FILENAME}.lock"
 
-for DIR in "$DATAHOME_RESOLVED" "$COMROOT_RESOLVED" "$COMOUT_RESOLVED"
-do
-    case "${DIR}/" in
-        "${HIST_PERTURB_RESOLVED}/"*|"${HIST_COM_RESOLVED}/"*)
-            die "Path points into historical outputs: $DIR"
-            ;;
-    esac
-done
+if [[ ! -e "$LOCK_FILE" && ! -L "$LOCK_FILE" ]]; then
+    (
+        umask 077
+        set -o noclobber
+        : > "$LOCK_FILE"
+    ) 2>/dev/null || true
+fi
 
-# COMOUT must remain within the configured COMROOT.
-case "${COMOUT_RESOLVED}/" in
-    "${COMROOT_RESOLVED}/"*) ;;
+[[ -f "$LOCK_FILE" &&
+   ! -L "$LOCK_FILE" &&
+   -O "$LOCK_FILE" ]] ||
+    die "Unsafe COM lock file: $LOCK_FILE"
+
+[[ "$(stat -c '%h' "$LOCK_FILE")" == 1 ]] ||
+    die "COM lock file has multiple hard links"
+
+exec 8<>"$LOCK_FILE"
+
+STATUS=0
+
+flock -n -E 75 8 || STATUS=$?
+
+case "$STATUS" in
+    0)
+        echo "[PASS] Acquired COM target lock"
+        ;;
+    75)
+        die "Another PERTURB execution holds the COM target lock"
+        ;;
     *)
-        die "Resolved COMOUT is outside COMROOT"
+        die "Unable to acquire COM target lock: status=$STATUS"
         ;;
 esac
 
-# Enforce regression isolation when TEST_ROOT is configured.
-if [[ -n "${TEST_ROOT:-}" ]]; then
+[[ -f "$LOCK_FILE" &&
+   ! -L "$LOCK_FILE" &&
+   -O "$LOCK_FILE" &&
+   "$LOCK_FILE" -ef "/proc/$$/fd/8" ]] ||
+    die "COM lock-file identity changed"
 
-    TEST_ROOT_RESOLVED=$(realpath -e -- "$TEST_ROOT") ||
-        die "Invalid TEST_ROOT"
+[[ "$(stat -c '%h' "$LOCK_FILE")" == 1 ]] ||
+    die "COM lock file has multiple hard links"
 
-    [[ -d "$TEST_ROOT_RESOLVED" && "$TEST_ROOT_RESOLVED" != / ]] ||
-        die "Invalid TEST_ROOT directory"
+"$VALIDATOR"
 
-    for DIR in "$DATAHOME_RESOLVED" "$COMROOT_RESOLVED" "$COMOUT_RESOLVED"
+# Recover only recognizable interrupted publication links.
+recover_com_publication()
+{
+    local LINKS
+    local CANDIDATE
+    local -a RECOVERABLE=()
+
+    [[ -e "$TARGET_FILE" ]] || return 0
+
+    [[ -f "$TARGET_FILE" && ! -L "$TARGET_FILE" ]] ||
+        die "Unsafe existing COM target"
+
+    LINKS=$(stat -c '%h' "$TARGET_FILE")
+
+    [[ "$LINKS" -gt 1 ]] || return 0
+
+    [[ -O "$TARGET_FILE" ]] ||
+        die "Cannot recover COM target owned by another user"
+
+    for CANDIDATE in "$COMOUT"/."${FILENAME}".tmp.*
     do
-        case "${DIR}/" in
-            "${TEST_ROOT_RESOLVED}/"*) ;;
-            *)
-                die "Path is outside TEST_ROOT: $DIR"
-                ;;
-        esac
+        [[ -f "$CANDIDATE" &&
+           ! -L "$CANDIDATE" &&
+           -O "$CANDIDATE" ]] ||
+            continue
+
+        [[ "$CANDIDATE" -ef "$TARGET_FILE" ]] ||
+            continue
+
+        RECOVERABLE+=("$CANDIDATE")
     done
 
-fi
+    # Do not remove anything if any alias is unrecognized.
+    (( ${#RECOVERABLE[@]} == LINKS - 1 )) ||
+        die "Unrecognized hard links to existing COM target"
 
-mkdir -p -- "$COMOUT"
+    for CANDIDATE in "${RECOVERABLE[@]}"
+    do
+        [[ -f "$CANDIDATE" &&
+           ! -L "$CANDIDATE" &&
+           -O "$CANDIDATE" &&
+           "$CANDIDATE" -ef "$TARGET_FILE" ]] ||
+            die "COM recovery candidate changed unexpectedly"
+
+        rm -- "$CANDIDATE"
+
+        echo "[PASS] Removed interrupted COM link: $CANDIDATE"
+    done
+
+    [[ "$(stat -c '%h' "$TARGET_FILE")" == 1 ]] ||
+        die "COM target still has multiple hard links"
+
+    echo "[PASS] Interrupted COM publication recovered"
+}
+
+recover_com_publication
 
 if [[ -L "$TARGET_FILE" ]]; then
     die "Refusing to overwrite symbolic link: $TARGET_FILE"
@@ -170,12 +252,24 @@ fi
 TEMP_FILE=""
 
 cleanup() {
+    local STATUS=$?
+
+    trap - EXIT
+
     if [[ -n "$TEMP_FILE" ]]; then
-        rm -f -- "$TEMP_FILE"
+        rm -f -- "$TEMP_FILE" ||
+            echo "[WARNING] COM temporary-file cleanup failed" >&2
     fi
+
+    # Release the lock but never remove its persistent file.
+    exec 8>&-
+
+    exit "$STATUS"
 }
 
 trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 TEMP_FILE=$(mktemp "${COMOUT}/.${FILENAME}.tmp.XXXXXXXX")
 
@@ -183,6 +277,16 @@ cp -p -- "$SOURCE_FILE" "$TEMP_FILE"
 
 cmp -s -- "$SOURCE_FILE" "$TEMP_FILE" ||
     die "Copied file differs from source"
+
+[[ -f "$TEMP_FILE" &&
+   ! -L "$TEMP_FILE" &&
+   -O "$TEMP_FILE" ]] ||
+    die "Unsafe temporary COM product"
+
+[[ "$(stat -c '%h' "$TEMP_FILE")" == 1 ]] ||
+    die "Temporary COM product has multiple hard links"
+
+"$VALIDATOR"
 
 if [[ "$COM_OVERWRITE" == YES ]]; then
 
@@ -208,7 +312,15 @@ fi
 
 TEMP_FILE=""
 
-[[ -s "$TARGET_FILE" ]] ||
-    die "Published file is empty"
+[[ -f "$TARGET_FILE" &&
+   ! -L "$TARGET_FILE" &&
+   -s "$TARGET_FILE" ]] ||
+    die "Published COM product is invalid"
+
+[[ "$(stat -c '%h' "$TARGET_FILE")" == 1 ]] ||
+    die "Published COM product has multiple hard links"
+
+cmp -s -- "$SOURCE_FILE" "$TARGET_FILE" ||
+    die "Published COM product differs from working source"
 
 echo "[PASS] Published: $TARGET_FILE"

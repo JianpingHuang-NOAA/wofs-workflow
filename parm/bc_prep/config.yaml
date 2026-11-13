@@ -71,6 +71,20 @@ mean:
   executable: "average_netcdf_files_parallel.x"
 
 perturb:
+  # Regression remains the safe default.
+  # Operational execution must be explicitly selected.
+  execution_mode: "regression"
+
+  # Authorized operational output roots.
+  # Supply these through site configuration or the environment.
+  operational_work_root: ""
+  operational_com_root: ""
+
+  # Historical output directories that must not be modified.
+  # Configure these through site settings or the environment.
+  protected_work_root: ""
+  protected_com_root: ""
+
   # Current JWOFS_BC_PREP_PERTURB setting.
   # Verify against the target legacy Rocoto XML before production use.
   soil_from_wrfprs: 0

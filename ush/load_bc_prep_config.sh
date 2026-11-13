@@ -80,6 +80,20 @@ mapping = {
     "MIN_FILE_SIZE": ("perturb", "min_file_size"),
 }
 
+optional_mapping = {
+    "BC_PREP_MODE": ("perturb", "execution_mode", "regression"),
+    "BC_PERTURB_WORK_ROOT": ("perturb", "operational_work_root", ""),
+    "BC_PERTURB_COM_ROOT": ("perturb", "operational_com_root", ""),
+    "BC_PROTECTED_WORK_ROOT": ("perturb", "protected_work_root", ""),
+    "BC_PROTECTED_COM_ROOT": ("perturb", "protected_com_root", ""),
+}
+
+for variable, (section, key, default) in optional_mapping.items():
+    value = cfg.get(section, {}).get(key, default)
+    if not isinstance(value, str):
+        raise ValueError(f"Invalid {section}.{key}")
+    print(f"_bc_yaml_{variable}={shlex.quote(value)}")
+
 for variable, (section, key) in mapping.items():
     value = cfg[section][key]
     if value is None or isinstance(value, (dict, list, bool)):
@@ -98,7 +112,9 @@ for _bc_name in \
     GEFS_DIR GEFS_CYCLES GEFS_INTERVAL ENS_SIZE \
     HIGHRES_SST_DIR SST_CYCLE HRRR_DIR HRRR_WRFPRS_DIR \
     METGRID_PROC REAL_NTASKS MEAN_PROC \
-    SOIL_FROM_WRFPRS MIN_FILE_SIZE
+    SOIL_FROM_WRFPRS MIN_FILE_SIZE \
+    BC_PREP_MODE BC_PERTURB_WORK_ROOT BC_PERTURB_COM_ROOT \
+    BC_PROTECTED_WORK_ROOT BC_PROTECTED_COM_ROOT
 do
     _bc_yaml_name="_bc_yaml_${_bc_name}"
     if [[ -z "${!_bc_name:-}" ]]; then
@@ -107,6 +123,14 @@ do
     export "${_bc_name}"
     unset "${_bc_yaml_name}"
 done
+
+case "${BC_PREP_MODE}" in
+    regression|operational) ;;
+    *)
+        echo "ERROR: Invalid BC_PREP_MODE=${BC_PREP_MODE}" >&2
+        return 1
+        ;;
+esac
 
 export ENSEMBLE_SIZE="${ENSEMBLE_SIZE:-${ENS_SIZE}}"
 

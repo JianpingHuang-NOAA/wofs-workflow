@@ -71,8 +71,6 @@ export BC_DATA="${BC_DATA:-${DATAROOT}/WoF_BC}"
 
 export DATAHOME_GEFS="${DATAHOME_GEFS:-${BC_DATA}/gefs}"
 
-export DATAHOME_HRRR="${DATAHOME_HRRR:-${BC_DATA}/pert_hrrr}"
-
 export HRRR_DIR="${HRRR_DIR:-/public/data/grids/hrrr/conus/wrfnat/grib2}"
 
 export HRRR_WRFPRS_DIR="${HRRR_WRFPRS_DIR:-/public/data/grids/hrrr/conus/wrfprs/grib2}"
@@ -83,11 +81,63 @@ export NCL_SCRIPTS="${NCL_SCRIPTS:-${HOMEwofs}/util}"
 export SOIL_FROM_WRFPRS="${SOIL_FROM_WRFPRS:-0}"
 export MIN_FILE_SIZE="${MIN_FILE_SIZE:-1000000000}"
 
-export DATAHOME="${DATAHOME:-${DATAHOME_HRRR}/${START_TIME}/postprd_mem00${MEMBER}}"
+# Resolve output paths according to the execution mode.
+export BC_PREP_MODE="${BC_PREP_MODE:-regression}"
 
-# COMROOT must be explicitly configured to avoid accidental staging
-# into the historical operational directory.
-: "${COMROOT:?ERROR: COMROOT must be explicitly defined}"
+case "${BC_PREP_MODE}" in
+
+    regression)
+        : "${TEST_ROOT:?ERROR: TEST_ROOT is required in regression mode}"
+
+        export DATAHOME_HRRR="${TEST_ROOT}/pert_hrrr"
+
+        : "${COMROOT:?ERROR: COMROOT must be explicitly defined in regression mode}"
+        ;;
+
+    operational)
+        [[ -z "${TEST_ROOT:-}" ]] || {
+            echo "ERROR: Unset TEST_ROOT for operational mode" >&2
+            exit 1
+        }
+
+        : "${BC_PERTURB_WORK_ROOT:?ERROR: Operational work root is required}"
+        : "${BC_PERTURB_COM_ROOT:?ERROR: Operational COM root is required}"
+
+        export DATAHOME_HRRR="${BC_PERTURB_WORK_ROOT}"
+        export COMROOT="${COMROOT:-${BC_PERTURB_COM_ROOT}}"
+        ;;
+
+    *)
+        echo "ERROR: Invalid BC_PREP_MODE=${BC_PREP_MODE}" >&2
+        exit 1
+        ;;
+
+esac
+
+export DATAHOME="${DATAHOME:-${DATAHOME_HRRR}/${START_TIME}/postprd_mem00${MEMBER}}"
+export COMROOT
+
+# Require explicit historical-output protection.
+: "${BC_PROTECTED_WORK_ROOT:?ERROR: Protected work root is required}"
+: "${BC_PROTECTED_COM_ROOT:?ERROR: Protected COM root is required}"
+
+export SENDCOM="${SENDCOM:-YES}"
+export COM_OVERWRITE="${COM_OVERWRITE:-NO}"
+export WORK_OVERWRITE="${WORK_OVERWRITE:-NO}"
+export KEEP_INTERMEDIATE="${KEEP_INTERMEDIATE:-NO}"
+export KEEP_FAILED_RUN="${KEEP_FAILED_RUN:-NO}"
+
+export TZ=UTC
+
+# Validate output paths before application execution.
+VALIDATOR="${HOMEwofs}/ush/validate_bc_perturb_paths.sh"
+
+[[ -x "${VALIDATOR}" ]] || {
+    echo "ERROR: Missing path validator: ${VALIDATOR}" >&2
+    exit 1
+}
+
+"${VALIDATOR}"
 
 # Check application files
 for FILE in \
@@ -117,6 +167,14 @@ echo "HRRR_WRFPRS_DIR   = ${HRRR_WRFPRS_DIR}"
 echo "SOIL_FROM_WRFPRS  = ${SOIL_FROM_WRFPRS}"
 echo "MIN_FILE_SIZE     = ${MIN_FILE_SIZE}"
 echo "COMROOT           = ${COMROOT}"
+echo "BC_PREP_MODE      = ${BC_PREP_MODE}"
+echo "DATAHOME_HRRR     = ${DATAHOME_HRRR}"
+echo "TEST_ROOT         = ${TEST_ROOT:-not_set}"
+echo "SENDCOM           = ${SENDCOM}"
+echo "COM_OVERWRITE     = ${COM_OVERWRITE}"
+echo "WORK_OVERWRITE    = ${WORK_OVERWRITE}"
+echo "KEEP_INTERMEDIATE = ${KEEP_INTERMEDIATE}"
+echo "KEEP_FAILED_RUN   = ${KEEP_FAILED_RUN}"
 echo "============================================================"
 
 "${HOMEwofs}/scripts/exwofs_bc_prep_perturb.sh"

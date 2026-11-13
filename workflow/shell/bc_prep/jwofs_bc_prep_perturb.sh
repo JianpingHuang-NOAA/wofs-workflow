@@ -19,11 +19,9 @@
 set -euo pipefail
 
 : "${HOMEwofs:?ERROR: HOMEwofs must be defined}"
-: "${TEST_ROOT:?ERROR: TEST_ROOT must be defined}"
 : "${START_TIME:?ERROR: START_TIME must be defined}"
 : "${FCST_LEAD_TIME:?ERROR: FCST_LEAD_TIME must be defined}"
 : "${WOF_CYCLE_TIME:?ERROR: WOF_CYCLE_TIME must be defined}"
-: "${COMROOT:?ERROR: COMROOT must be defined}"
 
 # For Slurm arrays, the array task ID determines the member.
 # For single-member tests, use the exported MEMBER.
@@ -45,10 +43,6 @@ export MEMBER
 export CYCLE_TIME="${START_TIME}"
 export BC_PREP_STAGE=PERTURB
 export model=wofs
-
-# Default outputs to isolated test locations.
-export DATAHOME="${DATAHOME:-${TEST_ROOT}/pert_hrrr/${START_TIME}/postprd_mem00${MEMBER}}"
-export DATAHOME_GEFS="${DATAHOME_GEFS:?ERROR: DATAHOME_GEFS must be defined}"
 
 # Load the standardized BC_PREP runtime environment.
 source "${HOMEwofs}/versions/bc_prep.ver"
@@ -79,6 +73,13 @@ fi
 
 echo "[PASS] PERTURB Python runtime validated"
 
+# Load standardized BC_PREP configuration.
+# Existing nonempty environment values take precedence.
+source "${HOMEwofs}/ush/load_bc_prep_config.sh"
+
+# Preserve UTC cycle calculations.
+export TZ=UTC
+
 module list
 
 echo "============================================================"
@@ -89,10 +90,12 @@ echo "START_TIME       = ${START_TIME}"
 echo "FCST_LEAD_TIME   = ${FCST_LEAD_TIME}"
 echo "WOF_CYCLE_TIME   = ${WOF_CYCLE_TIME}"
 echo "MEMBER           = ${MEMBER}"
-echo "DATAHOME         = ${DATAHOME}"
+echo "BC_PREP_MODE     = ${BC_PREP_MODE}"
+echo "DATAROOT         = ${DATAROOT}"
+echo "DATAHOME         = ${DATAHOME:-resolved_by_J_job}"
 echo "DATAHOME_GEFS    = ${DATAHOME_GEFS}"
-echo "COMROOT          = ${COMROOT}"
-echo "TEST_ROOT        = ${TEST_ROOT}"
+echo "COMROOT          = ${COMROOT:-resolved_by_J_job}"
+echo "TEST_ROOT        = ${TEST_ROOT:-not_set}"
 echo "SLURM_JOB_ID     = ${SLURM_JOB_ID:-not_set}"
 echo "============================================================"
 

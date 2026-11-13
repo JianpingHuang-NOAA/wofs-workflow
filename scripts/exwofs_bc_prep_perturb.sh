@@ -2,155 +2,108 @@
 # ============================================================================
 # WoFS v1.0 BC_PREP PERTURB application script
 #
-# Runs the legacy scientific perturbation utility and stages GRIB2 output.
+# Execute the scientific perturbation algorithm in a private directory.
+# The isolated runner holds the working-product lock through COM staging.
+#
 # HRRR initialization and WoFS forecast cycle are independent.
+# Supports both regression and operational execution modes.
 # ============================================================================
 
 set -euo pipefail
 
-# Required environment
+die()
+{
+    echo "[ERROR] $*" >&2
+    exit 1
+}
+
+# Required environment.
 for VAR in \
     HOMEwofs MEMBER START_TIME FCST_LEAD_TIME WOF_CYCLE_TIME \
-    DATAHOME DATAHOME_GEFS HRRR_DIR NCL_SCRIPTS COMROOT
+    DATAHOME DATAHOME_GEFS HRRR_DIR NCL_SCRIPTS COMROOT \
+    WOFS_PYTHON MIN_FILE_SIZE
 do
-    if [[ -z "${!VAR:-}" ]]; then
-        echo "ERROR: ${VAR} must be defined"
-        exit 1
-    fi
+    [[ -n "${!VAR:-}" ]] ||
+        die "${VAR} must be defined"
 done
 
-[[ "${START_TIME}" =~ ^[0-9]{10}$ ]] || exit 1
-[[ "${WOF_CYCLE_TIME}" =~ ^[0-9]{10}$ ]] || exit 1
-[[ "${MEMBER}" =~ ^[0-9]{1,2}$ ]] || exit 1
-[[ "${FCST_LEAD_TIME}" =~ ^[0-9]{1,2}$ ]] || exit 1
+export BC_PREP_MODE="${BC_PREP_MODE:-regression}"
 
-MEMBER_NUM=$((10#${MEMBER}))
-FHOUR_NUM=$((10#${FCST_LEAD_TIME}))
+export SENDCOM="${SENDCOM:-YES}"
+export COM_OVERWRITE="${COM_OVERWRITE:-NO}"
+export WORK_OVERWRITE="${WORK_OVERWRITE:-NO}"
+export KEEP_INTERMEDIATE="${KEEP_INTERMEDIATE:-NO}"
+export KEEP_FAILED_RUN="${KEEP_FAILED_RUN:-NO}"
 
-(( MEMBER_NUM >= 1 && MEMBER_NUM <= 18 )) || exit 1
-(( FHOUR_NUM >= 0 && FHOUR_NUM <= 25 )) || exit 1
+export TZ=UTC
 
-MEM2=$(printf "%02d" "${MEMBER_NUM}")
-MEM4=$(printf "%04d" "${MEMBER_NUM}")
-FHOUR=$(printf "%02d" "${FHOUR_NUM}")
+VALIDATOR="${HOMEwofs}/ush/validate_bc_perturb_paths.sh"
+RUNNER="${HOMEwofs}/ush/run_bc_perturb_isolated.sh"
+
+[[ -x "$VALIDATOR" ]] ||
+    die "Missing path validator: $VALIDATOR"
+
+[[ -x "$RUNNER" ]] ||
+    die "Missing isolated runner: $RUNNER"
+
+[[ -x "$WOFS_PYTHON" ]] ||
+    die "Invalid WOFS_PYTHON: $WOFS_PYTHON"
+
+# Validate configuration before dispatching the runner.
+"$VALIDATOR"
+
+# Normalize member and forecast-hour identifiers.
+printf -v MEM2 '%02d' "$((10#$MEMBER))"
+printf -v MEM4 '%04d' "$((10#$MEMBER))"
+printf -v FHOUR '%02d' "$((10#$FCST_LEAD_TIME))"
+
+export MEMBER="$MEM2"
+export FCST_LEAD_TIME="$FHOUR"
 
 PDY="${WOF_CYCLE_TIME:0:8}"
 cyc="${WOF_CYCLE_TIME:8:2}"
 
-SOURCE_FILE="${DATAHOME}/wrfnat_pert_hrrr_mem${MEM4}_${FHOUR}.grib2"
+FILENAME="wrfnat_pert_hrrr_mem${MEM4}_${FHOUR}.grib2"
+
+SOURCE_FILE="${DATAHOME}/${FILENAME}"
 COMOUT="${COMROOT}/wofs.${PDY}/${cyc}/INPUT/mem${MEM2}"
-
-# ---------------------------------------------------------------------------
-# Safety checks: prohibit historical output locations
-# ---------------------------------------------------------------------------
-
-HISTORICAL_PERTURB_ROOT="/scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_BC/pert_hrrr"
-HISTORICAL_COMROOT="/scratch3/NCEPDEV/stmp/Jianping.Huang/com/wofs/v1.0"
-
-# Resolve paths, including symlinks and relative components.
-DATAHOME_RESOLVED=$(realpath -m "${DATAHOME}")
-COMROOT_RESOLVED=$(realpath -m "${COMROOT}")
-HIST_PERTURB_RESOLVED=$(realpath -m "${HISTORICAL_PERTURB_ROOT}")
-HIST_COM_RESOLVED=$(realpath -m "${HISTORICAL_COMROOT}")
-
-case "${DATAHOME_RESOLVED}/" in
-    "${HIST_PERTURB_RESOLVED}/"*)
-        echo "ERROR: DATAHOME points into historical PERTURB outputs"
-        exit 1
-        ;;
-esac
-
-case "${COMROOT_RESOLVED}/" in
-    "${HIST_COM_RESOLVED}/"*)
-        echo "ERROR: COMROOT points into historical COM outputs"
-        exit 1
-        ;;
-esac
-
-# Restrict this test to the isolated test tree.
-: "${TEST_ROOT:?ERROR: TEST_ROOT must be defined}"
-
-TEST_ROOT_RESOLVED=$(realpath -m "${TEST_ROOT}")
-
-case "${DATAHOME_RESOLVED}/" in
-    "${TEST_ROOT_RESOLVED}/"*) ;;
-    *)
-        echo "ERROR: DATAHOME must be inside TEST_ROOT"
-        exit 1
-        ;;
-esac
-
-case "${COMROOT_RESOLVED}/" in
-    "${TEST_ROOT_RESOLVED}/"*) ;;
-    *)
-        echo "ERROR: COMROOT must be inside TEST_ROOT"
-        exit 1
-        ;;
-esac
-
-UTILITY="${HOMEwofs}/ush/perturb_hrrr.ksh"
-STAGER="${HOMEwofs}/ush/stage_bc_perturb.sh"
-
-[[ -x "${UTILITY}" ]] || {
-    echo "ERROR: Missing or non-executable utility: ${UTILITY}"
-    exit 1
-}
-
-[[ -x "${STAGER}" ]] || {
-    echo "ERROR: Missing or non-executable staging utility: ${STAGER}"
-    exit 1
-}
-
-export SENDCOM="${SENDCOM:-YES}"
-export COM_OVERWRITE="${COM_OVERWRITE:-NO}"
-
-[[ "${SENDCOM}" == YES || "${SENDCOM}" == NO ]] || {
-    echo "ERROR: Invalid SENDCOM"
-    exit 1
-}
-
-[[ "${COM_OVERWRITE}" == YES || "${COM_OVERWRITE}" == NO ]] || {
-    echo "ERROR: Invalid COM_OVERWRITE"
-    exit 1
-}
+TARGET_FILE="${COMOUT}/${FILENAME}"
 
 echo "============================================================"
 echo "WoFS BC_PREP PERTURB"
 echo "============================================================"
+echo "BC_PREP_MODE     = ${BC_PREP_MODE}"
 echo "START_TIME       = ${START_TIME}"
 echo "FCST_LEAD_TIME   = ${FHOUR}"
 echo "MEMBER           = ${MEM2}"
 echo "WOF_CYCLE_TIME   = ${WOF_CYCLE_TIME}"
-echo "DATAHOME         = ${DATAHOME_RESOLVED}"
+echo "DATAHOME         = ${DATAHOME}"
 echo "DATAHOME_GEFS    = ${DATAHOME_GEFS}"
 echo "COMOUT           = ${COMOUT}"
+echo "WOFS_PYTHON      = ${WOFS_PYTHON}"
+echo "SENDCOM          = ${SENDCOM}"
+echo "WORK_OVERWRITE   = ${WORK_OVERWRITE}"
+echo "COM_OVERWRITE    = ${COM_OVERWRITE}"
+echo "KEEP_INTERMEDIATE = ${KEEP_INTERMEDIATE}"
+echo "KEEP_FAILED_RUN   = ${KEEP_FAILED_RUN}"
 echo "============================================================"
 
-# Run the original scientific perturbation algorithm.
-"${UTILITY}"
+# The runner manages scientific execution, working publication,
+# COM staging, interruption recovery, locking, and cleanup.
+#
+# A nonzero runner status must terminate the application.
+"$RUNNER"
 
-# Verify generated output.
-if [[ ! -s "${SOURCE_FILE}" ]]; then
-    echo "ERROR: Missing PERTURB output: ${SOURCE_FILE}"
-    exit 1
-fi
-
-ls -lh "${SOURCE_FILE}"
-
-# Publish through the shared BC_PREP staging utility.
-echo "SENDCOM          = ${SENDCOM}"
-echo "COM_OVERWRITE    = ${COM_OVERWRITE}"
-
-"${STAGER}"
-
+# The runner has already validated publication under its locks.
+# Report completion without repeating unlocked file operations.
 echo "============================================================"
 echo "PERTURB completed successfully"
+echo "Working output: ${SOURCE_FILE}"
 
-if [[ "${SENDCOM}" == YES ]]; then
-    echo "Staged output: ${COMOUT}/$(basename "${SOURCE_FILE}")"
+if [[ "$SENDCOM" == YES ]]; then
+    echo "Staged output: ${TARGET_FILE}"
 else
     echo "COM publication skipped: SENDCOM=NO"
-    echo "Working output: ${SOURCE_FILE}"
 fi
 
 echo "============================================================"
