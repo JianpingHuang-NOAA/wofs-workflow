@@ -34,7 +34,7 @@ paths:
   upp_fix_dir: ${HOMEwofs}/fix/UPP
   static_wrf_dir: ${HOMEwofs}/fix/WRF
 
-  crtm_fix_dir: /contrib/spack-stack/spack-stack-1.9.1/envs/ue-oneapi-2024.2.1/install/oneapi/2024.2.1/crtm-fix-2.4.0.1_emc-t5jym6r/fix
+  crtm_fix_dir: auto
 
   ncl_script: ${HOMEwofs}/util/compute_wrf_pressure.ncl
   itag_template: ${HOMEwofs}/parm/ic_prep/itag.template

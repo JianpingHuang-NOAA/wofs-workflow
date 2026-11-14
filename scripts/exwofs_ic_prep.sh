@@ -193,31 +193,6 @@ ln -sfn "${GTG_CONFIG}" gtg.config
 ln -sfn "${ETA_MICRO_LOOKUP}" eta_micro_lookup.dat
 
 # -------------------------------------------------------
-# Stage CRTM coefficients
-# -------------------------------------------------------
-if [[ "${CRTM}" == "1" ]]; then
-    : "${CRTM_FIX_DIR:?Missing CRTM_FIX_DIR}"
-
-    [[ -d "${CRTM_FIX_DIR}" ]] || {
-        echo "ERROR: Missing CRTM directory: ${CRTM_FIX_DIR}" >&2
-        exit 1
-    }
-
-    shopt -s nullglob
-    crtm_files=( "${CRTM_FIX_DIR}"/*bin )
-    shopt -u nullglob
-
-    (( ${#crtm_files[@]} > 0 )) || {
-        echo "ERROR: No CRTM coefficient files found" >&2
-        exit 1
-    }
-
-    for file in "${crtm_files[@]}"; do
-        ln -sfn "${file}" "$(basename "${file}")"
-    done
-fi
-
-# -------------------------------------------------------
 # Generate UPP itag from parm/ic_prep/itag.template
 # -------------------------------------------------------
 echo "Generating UPP itag"
