@@ -13,6 +13,10 @@ export wofs_modulefile=ursa_ic_prep
 export stack_oneapi_ver=2024.2.1
 export stack_impi_ver=2021.13
 
+# Native Ursa compiler and MPI runtime
+export intel_compiler_ver=2023.2.0
+export intel_mpi_ver=2021.13.1
+
 # Supporting libraries
 export jasper_ver=2.0.32
 export libpng_ver=1.6.37
@@ -28,6 +32,7 @@ export wgrib2_ver=3.1.3_wmo
 export netcdf_c_ver=4.9.2
 export netcdf_fortran_ver=4.6.1
 export hdf5_ver=1.14.3
+export parallel_netcdf_ver=1.12.3
 
 # Postprocessing utilities
 export nco_ver=5.2.4

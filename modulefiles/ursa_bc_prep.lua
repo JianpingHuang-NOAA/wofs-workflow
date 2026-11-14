@@ -11,29 +11,36 @@ Supports boundary-condition preprocessing:
 
 whatis("Description: WoFS v1.0 BC_PREP runtime environment")
 
--- Legacy WPS compiler and MPI runtime
--- Matches the verified Ursa WPS executables.
-load("intel-oneapi-compilers/2023.2.0")
-load("intel-oneapi-mpi/2021.13.1")
+-- Dependency versions are provided by versions/run.ver.
+local function required_version(name)
+    local value = os.getenv(name)
 
--- NetCDF runtime
-load("netcdf-c/4.9.2")
-load("netcdf-fortran/4.6.1")
-load("parallel-netcdf/1.12.3")
+    if not value or value == "" then
+        LmodError("Missing " .. name ..
+                  "; source versions/run.ver first")
+    end
 
--- Python runtime for YAML configuration and processing
-local python_ver = os.getenv("python_ver")
-
-if python_ver == nil or python_ver == "" then
-    LmodError("python_ver is not defined. Source versions/run.ver first.")
+    return value
 end
 
-load("python/" .. python_ver)
+
+-- Legacy WPS compiler and MPI runtime
+-- Matches the verified Ursa WPS executables.
+load("intel-oneapi-compilers/" .. required_version("intel_compiler_ver"))
+load("intel-oneapi-mpi/" .. required_version("intel_mpi_ver"))
+
+-- NetCDF runtime
+load("netcdf-c/" .. required_version("netcdf_c_ver"))
+load("netcdf-fortran/" .. required_version("netcdf_fortran_ver"))
+load("parallel-netcdf/" .. required_version("parallel_netcdf_ver"))
+
+-- Python runtime for YAML configuration and processing
+load("python/" .. required_version("python_ver"))
 
 -- BC_PREP processing utilities
-load("ncl/6.6.2")
-load("nco/5.2.4")
-load("wgrib2/3.1.3_wmo")
+load("ncl/" .. required_version("ncl_ver"))
+load("nco/" .. required_version("nco_ver"))
+load("wgrib2/" .. required_version("wgrib2_ver"))
 
 -- Runtime libraries used by the existing Ursa environment
 local spack = "/apps/spack-2024-12/linux-rocky9-x86_64/gcc-11.4.1"
