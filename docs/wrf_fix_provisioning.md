@@ -111,8 +111,9 @@ version controlled.
 
 ## Legacy namelist formatting
 
-The 36 ensemble namelists preserve their original byte
-contents, including inherited trailing whitespace.
+The 36 ensemble namelists and the BC_PREP REAL namelist
+preserve their original byte contents, including inherited
+trailing whitespace.
 
 These formatting characteristics are intentionally retained
 to maintain exact legacy provenance and SHA256 reproducibility.
