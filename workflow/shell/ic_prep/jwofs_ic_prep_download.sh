@@ -4,8 +4,8 @@
 #SBATCH -n 1
 #SBATCH --mem=12G
 #SBATCH -t 00:45:00
-#SBATCH -o /scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_IC/logs/wofs_ic_download_%j.out
-#SBATCH -e /scratch3/NCEPDEV/stmp/Jianping.Huang/WoF_IC/logs/wofs_ic_download_%j.err
+#SBATCH -o wofs_ic_download_%j.out
+#SBATCH -e wofs_ic_download_%j.err
 
 set -euo pipefail
 
