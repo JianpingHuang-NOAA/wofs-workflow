@@ -37,3 +37,10 @@ export ncl_ver=6.6.2
 export crtm_ver=2.4.0.1
 export g2_ver=3.5.1
 export g2c_ver=2.1.0
+
+# ============================================================
+# Isolated UPP runtime environment on NOAA Ursa
+# ============================================================
+
+export upp_modulefile=ursa_upp
+export spack_stack_ver=1.9.2

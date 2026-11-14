@@ -246,8 +246,8 @@ cat itag
 # -------------------------------------------------------
 echo "Running UPP with ${IC_MPI_TASKS} MPI tasks"
 
-srun -n "${IC_MPI_TASKS}" \
-    "${POST}" < itag
+bash "${HOMEwofs}/ush/run_upp.sh" \
+    "${POST}" "${IC_MPI_TASKS}" itag
 
 # -------------------------------------------------------
 # Postprocess GRIB2 products
