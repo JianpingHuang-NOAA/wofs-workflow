@@ -36,7 +36,7 @@ required_vars=(
     POST_AVBLFLDS PARAMS_GRIB2_TBL
     POSTCNTRL POSTXCONFIG
     GTG_CONFIG ETA_MICRO_LOOKUP
-    IC_MPI_TASKS
+    IC_MPI_TASKS WOFS_PYTHON
     EXPECTED_RAW_WRFNAT_FIELDS
     EXPECTED_RAW_WRFTWO_FIELDS
     EXPECTED_FINAL_WRFTWO_FIELDS
@@ -71,7 +71,7 @@ echo "IC_MPI_TASKS    = ${IC_MPI_TASKS}"
 # -------------------------------------------------------
 # Validate dependencies before processing
 # -------------------------------------------------------
-for cmd in ncks ncatted ncap2 ncl wgrib2 srun python3; do
+for cmd in ncks ncatted ncap2 ncl wgrib2 srun; do
     command -v "${cmd}" >/dev/null 2>&1 || {
         echo "ERROR: Required command unavailable: ${cmd}" >&2
         exit 1
@@ -96,6 +96,11 @@ for file in \
         exit 1
     }
 done
+
+[[ "$WOFS_PYTHON" == /* && -x "$WOFS_PYTHON" ]] || {
+    echo "ERROR: Invalid shared Python: $WOFS_PYTHON" >&2
+    exit 1
+}
 
 [[ -x "${POST}" ]] || {
     echo "ERROR: UPP executable unavailable: ${POST}" >&2
@@ -242,7 +247,7 @@ ITAG_RENDERER="${HOMEwofs}/ush/render_ic_prep_itag.py"
     exit 1
 }
 
-"${IC_PREP_PYTHON:-python3}" "${ITAG_RENDERER}" \
+"${WOFS_PYTHON}" "${ITAG_RENDERER}" \
     "${ITAG_TEMPLATE}" itag
 
 [[ -s itag ]] || {

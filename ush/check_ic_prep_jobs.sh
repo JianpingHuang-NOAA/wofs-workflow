@@ -30,20 +30,15 @@ if [[ ! -f "${CONFIG}" ]]; then
     exit 2
 fi
 
-# Use a configurable Python interpreter with PyYAML.
-if [[ -n "${IC_PREP_PYTHON:-}" ]]; then
-    PYTHON="${IC_PREP_PYTHON}"
-elif [[ -n "${WOFS_PYTHON:-}" ]]; then
-    PYTHON="${WOFS_PYTHON}"
-else
-    PYTHON="python3"
-fi
+# Use the shared WoFS Python runtime.
+export HOMEwofs
 
-if ! "${PYTHON}" -c 'import yaml' >/dev/null 2>&1; then
-    echo "ERROR: Python interpreter lacks PyYAML: ${PYTHON}" >&2
-    echo "Set IC_PREP_PYTHON to an interpreter with PyYAML." >&2
+if ! source "${HOMEwofs}/ush/load_wofs_python.sh"; then
+    echo "ERROR: Shared WoFS Python initialization failed." >&2
     exit 2
 fi
+
+PYTHON="${WOFS_PYTHON}"
 
 if ! command -v wgrib2 >/dev/null 2>&1; then
     echo "ERROR: wgrib2 is not available in PATH." >&2

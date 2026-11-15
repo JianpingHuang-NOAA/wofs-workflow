@@ -39,7 +39,9 @@ prepend_path("LD_LIBRARY_PATH", netcdff)
 load("netcdf-c/" .. required_version("netcdf_c_ver"))
 
 -- Python runtime for IC_PREP
--- Provides PyYAML, NumPy, netCDF4, and SciPy on Ursa.
+-- Provides the base NOAA Python environment.
+-- Additional dependencies are installed by install_wofs_python.sh.
+-- Select and validate the virtual environment using load_wofs_python.sh.
 load("intel-oneapi-mpi/" .. required_version("intel_mpi_ver"))
 load("python/" .. required_version("python_ver"))
 

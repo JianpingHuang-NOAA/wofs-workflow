@@ -71,18 +71,9 @@ source "${HOMEwofs}/versions/run.ver"
 module use "${HOMEwofs}/modulefiles"
 module load "${wofs_modulefile}"
 
-# Resolve Python from the configured module environment.
-export IC_PREP_PYTHON="$(command -v python3)"
+source "${HOMEwofs}/ush/load_wofs_python.sh"
 
-if [[ -z "${IC_PREP_PYTHON}" ]] ||
-   ! "${IC_PREP_PYTHON}" -c \
-       'import yaml, numpy, netCDF4, scipy' >/dev/null 2>&1; then
-    echo "[ERROR] WoFS IC_PREP Python dependencies are unavailable" >&2
-    echo "Required packages: PyYAML, NumPy, netCDF4, SciPy." >&2
-    exit 1
-fi
-
-CONFIG_EXPORTS=$("${IC_PREP_PYTHON}" "${CONFIG_LOADER}" \
+CONFIG_EXPORTS=$("${WOFS_PYTHON}" "${CONFIG_LOADER}" \
     "${IC_PREP_CONFIG}")
 
 eval "${CONFIG_EXPORTS}"

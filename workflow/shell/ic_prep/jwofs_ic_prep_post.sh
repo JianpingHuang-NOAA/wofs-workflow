@@ -35,18 +35,9 @@ module use "${HOMEwofs}/modulefiles"
 module load "${wofs_modulefile}"
 
 # ------------------------------------------------------------
-# Python interpreter for YAML loader
+# Initialize the shared WoFS Python runtime.
 # ------------------------------------------------------------
-# Resolve Python from the loaded WoFS runtime environment.
-# Do not depend on a developer-specific Conda installation.
-export IC_PREP_PYTHON="${IC_PREP_PYTHON:-$(command -v python3 || true)}"
-
-if [[ -z "${IC_PREP_PYTHON}" ]] ||
-   ! "${IC_PREP_PYTHON}" -c \
-       'import yaml, numpy, netCDF4, scipy' >/dev/null 2>&1; then
-    echo "[ERROR] WoFS IC_PREP Python dependencies are unavailable" >&2
-    exit 1
-fi
+source "${HOMEwofs}/ush/load_wofs_python.sh"
 
 # ------------------------------------------------------------
 # Execute J-job
