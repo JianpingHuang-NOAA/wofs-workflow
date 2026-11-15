@@ -317,3 +317,129 @@ preserved.
 
 The complete hardened workflow will be exercised
 in the final 36-member ensemble regression.
+
+## Phase D: Dual-resource locking
+
+### Objective
+
+Prevent concurrent IC_PREP executions from modifying the same
+working directory or publishing to the same final COM destination.
+
+### Implementation
+
+- Acquire an exclusive, nonblocking working-directory lock.
+- Acquire an exclusive, nonblocking COM destination lock.
+- Acquire both locks before destructive working-directory cleanup.
+- Return exit status 75 when a resource is already locked.
+- Release the working-directory lock if COM lock acquisition fails.
+- Retain both locks throughout scientific processing and publication.
+- Release acquired locks when the execution process exits.
+- Preserve persistent lock files to maintain stable inode identity.
+- Canonicalize directory paths and reject unsafe lock-file types.
+
+Implementation files:
+
+- `scripts/exwofs_ic_prep.sh`
+- `ush/lock_ic_prep.sh`
+- `tests/check_ic_prep_locking.sh`
+
+### Cross-node filesystem validation
+
+Slurm job 26494390 verified advisory flock behavior on the shared
+Ursa Lustre filesystem using two independent compute nodes.
+
+Result: 6 PASS, 0 FAIL.
+
+### Permanent regression tests
+
+| Test suite | PASS | FAIL |
+|---|---:|---:|
+| IC_PREP inventory configuration | 10 | 0 |
+| Atomic COM publication | 23 | 0 |
+| Dual-resource locking | 23 | 0 |
+| Total | 56 | 0 |
+
+### Actual IC_PREP workflow regression
+
+Case: HRRRDAS initialization 2026110214, valid 2026110215,
+ensemble member 26.
+
+Slurm job: 26495879.
+
+Allocation: one node, 160 MPI tasks, 300 GB memory.
+
+Job state: COMPLETED, exit status 0:0.
+
+Elapsed time: 00:02:19.
+
+UPP elapsed time: 00:01:04.
+
+| Experiment | Expected exit | Actual exit | PASS | FAIL |
+|---|---:|---:|---:|---:|
+| R10: Working-directory conflict | 75 | 75 | 4 | 0 |
+| R11: COM destination conflict | 75 | 75 | 5 | 0 |
+| R12: Successful locked execution | 0 | 0 | 15 | 0 |
+| Total | | | 24 | 0 |
+
+R10 preserved the existing working file and produced no final
+COM product.
+
+R11 preserved both the existing working file and the existing
+COM product. The working lock was released after the COM conflict.
+
+R12 acquired both locks, completed UPP processing, passed all
+GRIB2 inventory checks, published the final COM product atomically,
+and released both locks. Persistent lock files remained intact.
+
+### Scientific reproducibility
+
+The R12 final native GRIB2 product contained 1167 records and
+was bitwise identical to the original legacy UPP R1 reference.
+
+SHA256:
+
+    99d8b707d3e8c7839a9507bada5c2a2d8d82692741156f5b6de213ffeeca3799
+
+The scientifically validated legacy UPP executable was unchanged.
+
+### Portable Python runtime
+
+The successful regression used the existing portable WoFS Python
+environment with user-site packages disabled.
+
+Validated dependencies:
+
+- Python 3.11.12
+- PyYAML 6.0.2
+- NumPy 2.2.5
+- netCDF4 1.7.4
+- SciPy 1.15.2
+- cftime 1.6.5
+
+Python NetCDF library: 4.9.3.
+
+Python HDF5 library: 1.14.6.
+
+The dependency consistency check reported no broken requirements.
+
+Two preliminary regression attempts, jobs 26495521 and 26495624,
+failed before locking validation because the isolated NOAA Python
+environment did not provide netCDF4. The successful experiment
+resolved this issue using the portable Python interpreter.
+
+The portable interpreter was configured only in the isolated
+regression environment. Permanent shared IC_PREP and BC_PREP
+Python runtime integration remains separate follow-up work.
+
+### Scope and limitations
+
+The locking mechanism is advisory and protects cooperating
+workflow processes. Persistent lock files must not be removed
+while executions may be active.
+
+The actual workflow conflict experiments used independently
+held filesystem locks rather than duplicate full UPP executions.
+
+The successful scientific regression covers member 26.
+A final full 36-member ensemble regression is planned before
+merging the output-reliability branch into develop.

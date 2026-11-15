@@ -105,7 +105,39 @@ done
 # -------------------------------------------------------
 # Ensemble-member working directory
 # -------------------------------------------------------
+# Define final products before acquiring resource locks.
+WRFPRS_FINAL="wrfprs_mem${MEMBER04}_${FCST_TIME}.grib2"
+WRFTWO_FINAL="wrftwo_mem${MEMBER04}_${FCST_TIME}.grib2"
+WRFNAT_FINAL="wrfnat_hrrre_newse_mem${MEMBER04}_${FCST_TIME}.grib2"
+
 mkdir -p "${POST_WORK_DIR}"
+
+COMOUT_MEMBER="${INPUTDIR}/mem${MEMBER02}"
+mkdir -p "${COMOUT_MEMBER}"
+
+OUTPUT_FILE="${COMOUT_MEMBER}/${WRFNAT_FINAL}"
+
+# Protect both the working directory and COM destination.
+source "${HOMEwofs}/ush/lock_ic_prep.sh"
+
+initialize_ic_prep_locks \
+    "${POST_WORK_DIR}" "${OUTPUT_FILE}"
+
+ic_prep_lock_cleanup()
+{
+    local status=$?
+
+    trap - EXIT
+
+    release_ic_prep_locks
+
+    exit "$status"
+}
+
+trap ic_prep_lock_cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 cd "${POST_WORK_DIR}"
 
 rm -f wrfout1.nc wrfout.nc
@@ -345,9 +377,6 @@ rm -f weasd.grib2 apcp.grib2
 validate_grib2_count "${POSTFILE}" \
     "${EXPECTED_FINAL_WRFTWO_FIELDS}" "Processed WRFTWO"
 
-WRFPRS_FINAL="wrfprs_mem${MEMBER04}_${FCST_TIME}.grib2"
-WRFTWO_FINAL="wrftwo_mem${MEMBER04}_${FCST_TIME}.grib2"
-WRFNAT_FINAL="wrfnat_hrrre_newse_mem${MEMBER04}_${FCST_TIME}.grib2"
 
 cat "${WRFPRS}" "${POSTFILE}" > "${WRFPRS_FINAL}.new"
 mv "${WRFPRS_FINAL}.new" "${WRFPRS_FINAL}"
@@ -379,10 +408,6 @@ validate_grib2_count "${WRFNAT_FINAL}" \
 # -------------------------------------------------------
 # Atomically publish WRFNAT to COMOUT/INPUT for WPS
 # -------------------------------------------------------
-COMOUT_MEMBER="${INPUTDIR}/mem${MEMBER02}"
-mkdir -p "${COMOUT_MEMBER}"
-
-OUTPUT_FILE="${COMOUT_MEMBER}/${WRFNAT_FINAL}"
 
 source "${HOMEwofs}/ush/publish_ic_prep_grib2.sh"
 
