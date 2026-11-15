@@ -177,3 +177,143 @@ protection remain subsequent development phases.
 
 Record-count validation does not establish complete
 GRIB2 content integrity.
+
+## Phase C: Atomic COM publication
+
+Implementation baseline: 764f5df
+
+### Implementation
+
+The direct COM copy is replaced by the reusable
+publication function in:
+
+ush/publish_ic_prep_grib2.sh
+
+The publication function:
+
+1. Creates a unique hidden temporary file in the
+   destination COM directory.
+2. Copies the validated source product.
+3. Preserves source file mode bits.
+4. Validates the exact GRIB2 inventory.
+5. Verifies byte-for-byte identity with the source.
+6. Atomically renames the temporary file to the
+   final COM filename.
+7. Removes temporary files on handled failures.
+
+Explicit failure handling is provided for temporary
+file creation, copying, permission changes,
+inventory validation, byte comparison and rename.
+
+The existing COM overwrite behavior is preserved.
+
+### Permanent synthetic regression
+
+Test:
+
+tests/check_ic_prep_atomic_publication.sh
+
+- Passed: 23
+- Failed: 0
+
+The tests cover initial publication, replacement,
+missing and empty sources, incorrect inventories,
+simulated filesystem operation failures,
+identical source and destination, preservation
+of existing COM products and temporary-file cleanup.
+
+### R7: Full IC_PREP regression
+
+- HRRRDAS initialization: 2026110214
+- WoFS initialization: 2026110215
+- Ensemble member: 26
+- MPI tasks: 160
+- Memory request: 300G
+- Slurm job ID: 26492648
+- Slurm state: COMPLETED
+- Exit code: 0:0
+
+Validated GRIB2 inventories:
+
+| Product | Records |
+|---------|--------:|
+| Raw WRFNAT | 1000 |
+| Raw WRFTWO | 169 |
+| Processed WRFTWO | 167 |
+| Final working WRFNAT | 1167 |
+| Temporary COM WRFNAT | 1167 |
+| Final COM WRFNAT | 1167 |
+
+All five bitwise comparisons against R1 and R3
+passed.
+
+Final COM WRFNAT SHA256:
+
+99d8b707d3e8c7839a9507bada5c2a2d8d82692741156f5b6de213ffeeca3799
+
+R7 exercised the initial atomic publication helper
+before the final defensive error-handling changes.
+
+### R8: Atomic replacement
+
+An existing 1000-record raw WRFNAT product was
+replaced by a validated 1167-record final product.
+
+The replacement was bitwise identical to R1.
+
+### R9: Invalid inventory rejection
+
+The expected inventory was deliberately set to
+1168 records for a valid 1167-record candidate.
+
+The temporary product was rejected before rename.
+
+The existing COM product remained unchanged and
+bitwise identical to R1.
+
+### Hardened R8/R9 regression
+
+- Slurm job ID: 26493754
+- Slurm state: COMPLETED
+- Exit code: 0:0
+- Passed: 13
+- Failed: 0
+
+The hardened publication helper passed all actual
+GRIB2 publication checks.
+
+### Validation summary
+
+| Test group | Passed | Failed |
+|------------|-------:|-------:|
+| Permanent synthetic publication tests | 23 | 0 |
+| R7 direct verification checks | 15 | 0 |
+| Hardened R8/R9 regression checks | 13 | 0 |
+| Total | 51 | 0 |
+
+The Phase C verification wrapper additionally
+passed all 19 checks, including four R8/R9
+summary checks.
+
+The Phase B configuration regression remains
+at 10 passed and zero failed.
+
+### Conclusion and limitations
+
+Atomic COM publication preserves the tested
+WoFS v1.0 scientific baseline and prevents
+invalid temporary products from replacing
+the final COM product under the tested conditions.
+
+Concurrent execution protection remains Phase D.
+
+Uncatchable termination may leave temporary files.
+Atomic rename does not guarantee storage durability
+following a filesystem failure.
+
+Source mode bits are preserved, but existing
+destination ownership and ACLs are not explicitly
+preserved.
+
+The complete hardened workflow will be exercised
+in the final 36-member ensemble regression.

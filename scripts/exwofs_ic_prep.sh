@@ -377,19 +377,17 @@ validate_grib2_count "${WRFNAT_FINAL}" \
     "${EXPECTED_FINAL_WRFNAT_FIELDS}" "Final WRFNAT"
 
 # -------------------------------------------------------
-# Copy WRFNAT to COMOUT/INPUT for WPS
+# Atomically publish WRFNAT to COMOUT/INPUT for WPS
 # -------------------------------------------------------
 COMOUT_MEMBER="${INPUTDIR}/mem${MEMBER02}"
 mkdir -p "${COMOUT_MEMBER}"
 
 OUTPUT_FILE="${COMOUT_MEMBER}/${WRFNAT_FINAL}"
 
-cp -f "${WRFNAT_FINAL}" "${OUTPUT_FILE}"
+source "${HOMEwofs}/ush/publish_ic_prep_grib2.sh"
 
-[[ -s "${OUTPUT_FILE}" ]] || {
-    echo "ERROR: Failed to copy WRFNAT to ${OUTPUT_FILE}" >&2
-    exit 1
-}
+publish_ic_prep_grib2 "${WRFNAT_FINAL}" \
+    "${OUTPUT_FILE}" "${EXPECTED_FINAL_WRFNAT_FIELDS}"
 
 validate_grib2_count "${OUTPUT_FILE}" \
     "${EXPECTED_FINAL_WRFNAT_FIELDS}" "Final COM WRFNAT"
