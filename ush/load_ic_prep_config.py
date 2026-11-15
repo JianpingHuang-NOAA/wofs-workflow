@@ -34,6 +34,26 @@ def as_bool(value):
     return str(value).lower() in ("true", "yes", "1", "on")
 
 
+def positive_int(value, name):
+    """Validate a positive integer configuration value."""
+    if isinstance(value, bool):
+        fail(f"{name} must be a positive integer")
+
+    if isinstance(value, int):
+        number = value
+    elif isinstance(value, str) and re.fullmatch(
+        r"[0-9]+", value
+    ):
+        number = int(value)
+    else:
+        fail(f"{name} must be a positive integer")
+
+    if number <= 0:
+        fail(f"{name} must be a positive integer")
+
+    return number
+
+
 def load_config(filename):
     with open(filename, encoding="utf-8") as handle:
         config = yaml.safe_load(handle)
@@ -122,6 +142,41 @@ def main():
             workflow.get("crtm_enabled", True)
         ) else "0",
     }
+
+    # Exact inventory expectations for the validated WoFS
+    # v1.0 UPP baseline. Defaults support older YAML files.
+    inventory_defaults = {
+        "expected_raw_wrfnat_fields": 1000,
+        "expected_raw_wrftwo_fields": 169,
+        "expected_final_wrftwo_fields": 167,
+        "expected_final_wrfnat_fields": 1167,
+    }
+
+    for name, default in inventory_defaults.items():
+        values[name.upper()] = str(
+            positive_int(
+                workflow.get(name, default),
+                f"workflow.{name}",
+            )
+        )
+
+    raw_nat = int(values["EXPECTED_RAW_WRFNAT_FIELDS"])
+    raw_two = int(values["EXPECTED_RAW_WRFTWO_FIELDS"])
+    final_two = int(values["EXPECTED_FINAL_WRFTWO_FIELDS"])
+    final_nat = int(values["EXPECTED_FINAL_WRFNAT_FIELDS"])
+
+    if final_two > raw_two:
+        fail(
+            "expected_final_wrftwo_fields cannot exceed "
+            "expected_raw_wrftwo_fields"
+        )
+
+    if final_nat != raw_nat + final_two:
+        fail(
+            "expected_final_wrfnat_fields must equal "
+            "expected_raw_wrfnat_fields plus "
+            "expected_final_wrftwo_fields"
+        )
 
     # Expand paths using only known configuration variables.
     # Undefined placeholders are errors, not silently ignored.

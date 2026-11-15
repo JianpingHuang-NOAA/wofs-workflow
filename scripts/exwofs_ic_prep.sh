@@ -36,7 +36,11 @@ required_vars=(
     POST_AVBLFLDS PARAMS_GRIB2_TBL
     POSTCNTRL POSTXCONFIG
     GTG_CONFIG ETA_MICRO_LOOKUP
-    IC_MPI_TASKS EXPECTED_NUM_FIELDS
+    IC_MPI_TASKS
+    EXPECTED_RAW_WRFNAT_FIELDS
+    EXPECTED_RAW_WRFTWO_FIELDS
+    EXPECTED_FINAL_WRFTWO_FIELDS
+    EXPECTED_FINAL_WRFNAT_FIELDS
     UPP_CORE UPP_IOFORM UPP_GRIB
     UPP_KPO UPP_PO VALID_TIME CRTM
 )
@@ -240,6 +244,42 @@ bash "${HOMEwofs}/ush/run_upp.sh" \
 # -------------------------------------------------------
 WGRIB2=$(command -v wgrib2)
 
+# Validate the exact number of GRIB2 inventory records.
+validate_grib2_count() {
+    local file="$1"
+    local expected="$2"
+    local label="$3"
+    local inventory
+    local actual
+
+    if [[ ! -s "$file" ]]; then
+        echo "ERROR: Missing GRIB2 product: $file" >&2
+        return 1
+    fi
+
+    if ! inventory=$("${WGRIB2}" "$file"); then
+        echo "ERROR: Cannot inventory GRIB2 file: $file" >&2
+        return 1
+    fi
+
+    actual=0
+
+    if [[ -n "$inventory" ]]; then
+        actual=$(printf '%s\n' "$inventory" | wc -l)
+    fi
+
+    if [[ "$actual" -ne "$expected" ]]; then
+        echo "ERROR: GRIB2 inventory mismatch: $label" >&2
+        echo "  File:     $file" >&2
+        echo "  Expected: $expected" >&2
+        echo "  Actual:   $actual" >&2
+        return 1
+    fi
+
+    echo "[PASS] $label: $actual GRIB2 records"
+}
+
+
 POSTFILE="WRFTWO.GrbF${FCST_TIME}"
 WRFPRS="WRFPRS.GrbF${FCST_TIME}"
 WRFNAT="WRFNAT.GrbF${FCST_TIME}"
@@ -251,20 +291,20 @@ for file in "${POSTFILE}" "${WRFPRS}" "${WRFNAT}"; do
     }
 done
 
+# Reject missing or excessive raw UPP records.
+validate_grib2_count "${WRFNAT}" \
+    "${EXPECTED_RAW_WRFNAT_FIELDS}" "Raw WRFNAT"
+
+validate_grib2_count "${POSTFILE}" \
+    "${EXPECTED_RAW_WRFTWO_FIELDS}" "Raw WRFTWO"
+
 rm -f orig.grib2 temp.grib2 otherfields.grib2
 rm -f weasd.grib2 apcp.grib2 fields.list
 
 mv "${POSTFILE}" orig.grib2
 
+# Preserve raw WRFTWO inventory for diagnostics.
 "${WGRIB2}" orig.grib2 > fields.list
-field_count=$(wc -l < fields.list)
-
-echo "WRFTWO field count: ${field_count}"
-
-if (( field_count < EXPECTED_NUM_FIELDS )); then
-    echo "ERROR: Too few GRIB2 fields" >&2
-    exit 1
-fi
 
 # Preserve the original accumulation interval convention.
 if (( FHOUR == 24 )); then
@@ -302,6 +342,9 @@ rm -f weasd.grib2 apcp.grib2
 # -------------------------------------------------------
 # Construct final GRIB2 products
 # -------------------------------------------------------
+validate_grib2_count "${POSTFILE}" \
+    "${EXPECTED_FINAL_WRFTWO_FIELDS}" "Processed WRFTWO"
+
 WRFPRS_FINAL="wrfprs_mem${MEMBER04}_${FCST_TIME}.grib2"
 WRFTWO_FINAL="wrftwo_mem${MEMBER04}_${FCST_TIME}.grib2"
 WRFNAT_FINAL="wrfnat_hrrre_newse_mem${MEMBER04}_${FCST_TIME}.grib2"
@@ -329,6 +372,11 @@ for file in \
 done
 
 # -------------------------------------------------------
+# Validate final native-grid inventory before publication.
+validate_grib2_count "${WRFNAT_FINAL}" \
+    "${EXPECTED_FINAL_WRFNAT_FIELDS}" "Final WRFNAT"
+
+# -------------------------------------------------------
 # Copy WRFNAT to COMOUT/INPUT for WPS
 # -------------------------------------------------------
 COMOUT_MEMBER="${INPUTDIR}/mem${MEMBER02}"
@@ -342,6 +390,9 @@ cp -f "${WRFNAT_FINAL}" "${OUTPUT_FILE}"
     echo "ERROR: Failed to copy WRFNAT to ${OUTPUT_FILE}" >&2
     exit 1
 }
+
+validate_grib2_count "${OUTPUT_FILE}" \
+    "${EXPECTED_FINAL_WRFNAT_FIELDS}" "Final COM WRFNAT"
 
 echo "======================================================"
 echo " WoFS IC_PREP completed successfully"

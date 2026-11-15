@@ -9,7 +9,14 @@ workflow:
   domain: 2
   model: RAP
   forecast_hour: 1
+  # Legacy setting retained for compatibility.
   expected_num_fields: 163
+
+  # Exact inventory for the WoFS v1.0 UPP baseline.
+  expected_raw_wrfnat_fields: 1000
+  expected_raw_wrftwo_fields: 169
+  expected_final_wrftwo_fields: 167
+  expected_final_wrfnat_fields: 1167
   crtm_enabled: true
 
 paths:
