@@ -61,10 +61,8 @@ module load ursa_wrf || exit 1
 # Python runtime for YAML configuration.
 module load "python/${python_ver}" || exit 1
 
-export PYTHONNOUSERSITE=1
-unset PYTHONPATH PYTHONHOME
-
-export WOFS_PYTHON="${WOFS_PYTHON:-$(command -v python3)}"
+# Initialize the shared WoFS Python runtime.
+source "${HOMEwofs}/ush/load_wofs_python.sh" || exit 1
 
 # Load BC_PREP configuration, preserving environment overrides.
 source "${HOMEwofs}/ush/load_bc_prep_config.sh" || exit 1

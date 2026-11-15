@@ -26,6 +26,7 @@ ENV = {
     "HOMEwofs": str(ROOT),
     "DATAROOT": DATAROOT,
     "WOFS_PYTHON": sys.executable,
+    "IC_PREP_PYTHON": sys.executable,
     "PYTHONNOUSERSITE": "1",
 }
 
@@ -54,7 +55,11 @@ def run(name, cfg=None, overrides=None, checks=None, error=None):
         path.write_text(content)
         env["BC_PREP_CONFIG"] = str(path)
 
-    env.update(overrides or {})
+    for key, value in (overrides or {}).items():
+        if value is None:
+            env.pop(key, None)
+        else:
+            env[key] = value
 
     command = 'set -euo pipefail; source "$HOMEwofs/ush/load_bc_prep_config.sh"'
 
@@ -243,6 +248,36 @@ def test_yaml_robustness():
         checks={"REAL_NTASKS": "80"})
 
 
+def test_python_runtime_contract():
+    error = "Initialize the shared WoFS Python runtime first."
+
+    run(
+        "preserve_wofs_python",
+        checks={"WOFS_PYTHON": sys.executable},
+    )
+
+    run(
+        "preserve_ic_prep_python",
+        checks={"IC_PREP_PYTHON": sys.executable},
+    )
+
+    invalid = [
+        ("missing_wofs_python", {"WOFS_PYTHON": None}),
+        ("missing_ic_prep_python", {"IC_PREP_PYTHON": None}),
+        ("conflicting_python", {"IC_PREP_PYTHON": "/invalid/python3"}),
+        ("relative_python", {
+            "WOFS_PYTHON": "python3",
+            "IC_PREP_PYTHON": "python3",
+        }),
+        ("user_site_enabled", {"PYTHONNOUSERSITE": "0"}),
+        ("inherited_pythonpath", {"PYTHONPATH": "/invalid/path"}),
+        ("inherited_pythonhome", {"PYTHONHOME": ""}),
+    ]
+
+    for name, overrides in invalid:
+        run(name, overrides=overrides, error=error)
+
+
 def main():
     print(f"Repository: {ROOT}")
     print(f"Python: {sys.executable}")
@@ -254,16 +289,17 @@ def main():
     test_invalid_environment()
     test_fixed_yaml()
     test_yaml_robustness()
+    test_python_runtime_contract()
 
     print("\n===== BC_PREP configuration regression summary =====")
     print(f"PASS = {PASSED}")
     print(f"FAIL = {FAILED}")
     print(f"Logs = {WORK}")
 
-    if PASSED != 78 or FAILED != 0:
+    if PASSED != 87 or FAILED != 0:
         return 1
 
-    print("[PASS] All 78 BC_PREP configuration tests")
+    print("[PASS] All 87 BC_PREP configuration tests")
     return 0
 
 

@@ -74,7 +74,8 @@ module load ursa_wrf
 # Python runtime for YAML configuration.
 module load "python/${python_ver}"
 
-export WOFS_PYTHON="${WOFS_PYTHON:-$(command -v python3 || true)}"
+# Initialize the shared WoFS Python runtime.
+source "${HOMEwofs}/ush/load_wofs_python.sh" || exit 1
 
 # ============================================================================
 # BC_PREP configuration

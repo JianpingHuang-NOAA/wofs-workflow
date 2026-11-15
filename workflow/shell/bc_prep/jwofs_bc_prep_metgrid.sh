@@ -55,8 +55,8 @@ source "${HOMEwofs}/versions/bc_prep.ver"
 module use "${HOMEwofs}/modulefiles"
 module load "${wofs_modulefile}"
 
-# Preserve an explicitly supplied Python interpreter.
-export WOFS_PYTHON="${WOFS_PYTHON:-$(command -v python3 || true)}"
+# Initialize the shared WoFS Python runtime.
+source "${HOMEwofs}/ush/load_wofs_python.sh" || exit 1
 
 echo "WOFS_PYTHON = ${WOFS_PYTHON}"
 
