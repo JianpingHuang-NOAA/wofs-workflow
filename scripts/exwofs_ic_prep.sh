@@ -221,6 +221,17 @@ cat itag
 # -------------------------------------------------------
 echo "Running UPP with ${IC_MPI_TASKS} MPI tasks"
 
+# Remove stale raw UPP products before execution.
+# MPI_MODE_CREATE does not truncate existing GRIB2 files.
+# A rerun must start with fresh raw output files.
+echo "===== Remove stale UPP output files ====="
+
+rm -f -- \
+    "WRFNAT.GrbF${FCST_TIME}" \
+    "WRFPRS.GrbF${FCST_TIME}" \
+    "WRFTWO.GrbF${FCST_TIME}" \
+    "WRFMSL.GrbF${FCST_TIME}"
+
 bash "${HOMEwofs}/ush/run_upp.sh" \
     "${POST}" "${IC_MPI_TASKS}" itag
 
