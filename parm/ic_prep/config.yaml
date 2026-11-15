@@ -1,8 +1,10 @@
 # WoFS v1.0 IC_PREP configuration (Ursa)
 # Paths support ${HOMEwofs}, ${INIT_TIME}, ${PDY}, ${cyc}, ${MEMBER04}, ${FCST_TIME}.
 
+# Python is initialized by ush/load_wofs_python.sh.
+# Configure WOFS_PYTHON or WOFS_PYTHON_ENV externally.
+
 workflow:
-  WOFS_PYTHON: python3
   INIT_TIME: "2026110214"
   stage: POST
   ens_size: 36

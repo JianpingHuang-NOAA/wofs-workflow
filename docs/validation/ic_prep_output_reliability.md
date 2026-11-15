@@ -544,3 +544,66 @@ into develop.
 - Accounting: accounting.tsv
 - Concurrency: concurrency.txt
 - Workflow checksums: workflow_files.sha256
+
+## Phase E: Shared Python runtime regression
+
+### Configuration
+
+- Validation date: 2026-11-15.
+- Platform: NOAA Ursa.
+- Branch: feature/portable-python-runtime.
+- Workflow revision: a0e2149719549b156c74264b2d94af77c1cc756e.
+- Python: 3.11.12.
+- Python environment: wofs_py311_p2_20261115_042228.
+- Test filesystem: shared Ursa Lustre filesystem.
+
+### Permanent regression results
+
+| Test suite | PASS | FAIL |
+|---|---:|---:|
+| Inventory configuration | 10 | 0 |
+| Atomic COM publication | 23 | 0 |
+| Dual-resource locking | 23 | 0 |
+| Total | 56 | 0 |
+
+All shared Python runtime validation checks passed,
+including package versions, installation locations,
+dependency consistency, native libraries, and ecCodes
+definitions.
+
+### Reliability implementation
+
+The existing locking and atomic publication helpers
+remain unchanged relative to the develop baseline.
+
+The existing COM overwrite policy is preserved:
+successful reruns may atomically replace existing
+products, while failed publication attempts preserve
+existing valid products under the tested conditions.
+
+### Acceptance
+
+All 56 permanent reliability checks passed using the
+new shared WoFS Python runtime.
+
+No additional changes to the IC_PREP locking or
+atomic publication implementation are required.
+
+The previous R13 ensemble regression established
+bitwise reproducibility for all 36 members using the
+earlier portable Python environment.
+
+A full ensemble regression using the newly integrated
+shared Python runtime remains a separate integration
+validation task.
+
+### Validation provenance
+
+- Regression directory: /scratch3/NCEPDEV/stmp/Jianping.Huang/WoFS_P6_reliability_20261115_180913.SR3JvhYh
+- Summary: summary.txt
+- Inventory tests: inventory.log
+- Publication tests: publication.log
+- Locking tests: locking.log
+- Runtime modules: modules.log
+- Python interpreter: python_path.txt
+- Git revision: git_revision.txt

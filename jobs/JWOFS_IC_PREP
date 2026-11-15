@@ -58,12 +58,22 @@ if [[ ! -f "${CONFIG_LOADER}" ]]; then
     exit 1
 fi
 
-# The loader prints shell-safe export statements.
-# Use the Python interpreter selected by the submission script.
-export IC_PREP_PYTHON="${IC_PREP_PYTHON:-$(command -v python3)}"
+# Consume the interpreter initialized by the workflow wrapper.
+: "${WOFS_PYTHON:?Initialize the shared WoFS Python runtime first}"
+: "${IC_PREP_PYTHON:?Missing IC_PREP_PYTHON}"
+
+if [[ "$WOFS_PYTHON" != /* ||
+      ! -x "$WOFS_PYTHON" ||
+      "$IC_PREP_PYTHON" != "$WOFS_PYTHON" ||
+      "${PYTHONNOUSERSITE:-}" != 1 ||
+      -n "${PYTHONPATH+x}" ||
+      -n "${PYTHONHOME+x}" ]]; then
+    echo "[ERROR] Invalid shared WoFS Python runtime" >&2
+    exit 1
+fi
 
 CONFIG_EXPORTS=$(
-    "${IC_PREP_PYTHON}"         "${CONFIG_LOADER}"         "${IC_PREP_CONFIG}"
+    "${WOFS_PYTHON}"         "${CONFIG_LOADER}"         "${IC_PREP_CONFIG}"
 )
 
 eval "${CONFIG_EXPORTS}"

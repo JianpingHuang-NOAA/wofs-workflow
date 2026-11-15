@@ -7,7 +7,7 @@
 # Runtime variables:
 #   HOMEwofs       Repository root
 #   DATAROOT       Working-data root
-#   WOFS_PYTHON    Python interpreter with PyYAML
+#   WOFS_PYTHON    Validated shared WoFS Python interpreter
 #   CDATE          WoFS cycle (YYYYMMDDHH)
 #
 # Configuration policy:

@@ -56,38 +56,15 @@ fi
 source "${VERSION_FILE}"
 
 # ------------------------------------------------------------
-# Initialize Python for the YAML configuration loader.
+# Initialize the shared WoFS Python runtime.
 # ------------------------------------------------------------
-if [[ -z "${WOFS_PYTHON:-}" ]]; then
+: "${python_ver:?python_ver must be defined in run.ver}"
 
-    if ! type module >/dev/null 2>&1; then
-        echo "[ERROR] Environment modules unavailable" >&2
-        exit 1
-    fi
+module load "python/${python_ver}"
 
-    : "${python_ver:?python_ver must be defined in run.ver}"
-
-    module load "python/${python_ver}"
-
-    export WOFS_PYTHON="$(command -v python3 || true)"
-
-fi
-
-if [[ -z "${WOFS_PYTHON:-}" ]]; then
-    echo "[ERROR] Python interpreter unavailable" >&2
-    exit 1
-fi
-
-if ! "${WOFS_PYTHON}" -c 'import yaml'; then
-    echo "[ERROR] PyYAML unavailable in ${WOFS_PYTHON}" >&2
-    exit 1
-fi
+source "${HOMEwofs}/ush/load_wofs_python.sh"
 
 echo "[PASS] DOWNLOAD Python environment validated"
-echo "WOFS_PYTHON: ${WOFS_PYTHON}"
-
-"${WOFS_PYTHON}" -c 'import yaml; print("PyYAML:", yaml.__version__)'
-
 
 # ------------------------------------------------------------
 # 3. Locate download job

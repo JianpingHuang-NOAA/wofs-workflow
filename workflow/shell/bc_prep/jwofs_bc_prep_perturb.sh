@@ -51,25 +51,11 @@ module purge
 module use "${HOMEwofs}/modulefiles"
 module load "${wofs_modulefile}"
 
-# Isolate Python from personal and inherited package settings.
-export PYTHONNOUSERSITE=1
-unset PYTHONPATH
-unset PYTHONHOME
-
-# Use the explicitly selected WoFS Python virtual environment.
-: "${WOFS_PYTHON:?ERROR: WOFS_PYTHON must be defined}"
-export WOFS_PYTHON
+# Initialize and validate the shared WoFS Python runtime.
+source "${HOMEwofs}/ush/load_wofs_python.sh" || exit 1
 
 echo "WOFS_PYTHON = ${WOFS_PYTHON}"
 echo "PYTHONNOUSERSITE = ${PYTHONNOUSERSITE}"
-
-# Validate the complete BC_PREP Python runtime before computation.
-if ! bash "${HOMEwofs}/tests/check_bc_prep_python.sh" \
-    "${WOFS_PYTHON}"
-then
-    echo "ERROR: Invalid BC_PREP Python runtime" >&2
-    exit 1
-fi
 
 echo "[PASS] PERTURB Python runtime validated"
 

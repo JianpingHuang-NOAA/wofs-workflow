@@ -9,7 +9,9 @@ export INIT_TIME=2026110214
 export MEMBER=26
 export IC_PREP_STAGE=POST
 
-python3 - <<'PY'
+source "${HOMEwofs}/ush/load_wofs_python.sh"
+
+"${WOFS_PYTHON}" - <<'PY'
 import copy
 import os
 import shlex

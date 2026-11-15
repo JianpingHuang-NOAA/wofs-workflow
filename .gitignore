@@ -49,3 +49,6 @@ logs/
 
 # Temporary backup files
 *.bak_*
+
+# Repository-local WoFS Python environment
+/python_env/

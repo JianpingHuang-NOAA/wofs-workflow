@@ -27,28 +27,24 @@ if [[ ! -r "${BC_PREP_CONFIG}" ]]; then
     return 1
 fi
 
-# Resolve Python after the runtime modules have been loaded.
-_bc_python_requested="${WOFS_PYTHON:-python3}"
-
-WOFS_PYTHON="$(command -v "${_bc_python_requested}" || true)"
-
-if [[ -z "${WOFS_PYTHON}" || ! -x "${WOFS_PYTHON}" ]]; then
-    echo "ERROR: Python interpreter not found: ${_bc_python_requested}" >&2
+# Consume the interpreter initialized by the workflow wrapper.
+if [[ "${WOFS_PYTHON:-}" != /* ||
+      ! -x "${WOFS_PYTHON:-}" ||
+      "${IC_PREP_PYTHON:-}" != "${WOFS_PYTHON:-}" ||
+      "${PYTHONNOUSERSITE:-}" != 1 ||
+      -n "${PYTHONPATH+x}" ||
+      -n "${PYTHONHOME+x}" ]]; then
+    echo "ERROR: Initialize the shared WoFS Python runtime first." >&2
     return 1
 fi
 
-export WOFS_PYTHON
-
 if ! "${WOFS_PYTHON}" -c 'import yaml'; then
     echo "ERROR: ${WOFS_PYTHON} cannot import PyYAML." >&2
-    echo "Set WOFS_PYTHON to a Python interpreter with PyYAML." >&2
     return 1
 fi
 
 echo "[PASS] WOFS_PYTHON: ${WOFS_PYTHON}"
-"${WOFS_PYTHON}" -c 'import yaml; print("PyYAML:", yaml.__version__)'
-
-unset _bc_python_requested
+"${WOFS_PYTHON}" -c 'import yaml; print("PyYAML:", yaml.__version__)' || return 1
 
 # The Python program emits only assignments to a fixed set of variables.
 # Values are shell-quoted before evaluation.
