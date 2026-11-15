@@ -443,3 +443,104 @@ held filesystem locks rather than duplicate full UPP executions.
 The successful scientific regression covers member 26.
 A final full 36-member ensemble regression is planned before
 merging the output-reliability branch into develop.
+
+## R13: Final 36-member ensemble regression
+
+### Configuration
+
+- Initialization: 2026110214.
+- Valid time: 2026110215.
+- Workflow revision: e08e88a.
+- Ensemble members: 36.
+- MPI tasks per member: 160.
+- Memory per member: 300 GB.
+- Requested maximum concurrency: 36.
+- IC_PREP job: 26496516.
+- Validation job: 26497602.
+- UPP: validated rebuilt legacy baseline.
+- Python: portable WoFS Python 3.11.
+- Scientific reference: R1 original legacy UPP.
+- All four output-reliability phases enabled.
+
+### Execution performance
+
+| Metric | Result |
+|---|---:|
+| Completed members | 36 |
+| Distinct compute nodes | 36 |
+| Maximum simultaneous allocations | 36 |
+| Minimum runtime (seconds) | 119 |
+| Maximum runtime (seconds) | 131 |
+| Mean runtime (seconds) | 121.44 |
+
+### Independent validation
+
+| Validation category | PASS | FAIL |
+|---|---:|---:|
+| Slurm completion | 36 | 0 |
+| Raw WRFNAT (1000 records) | 36 | 0 |
+| Raw WRFTWO (169 records) | 36 | 0 |
+| Processed WRFTWO (167 records) | 36 | 0 |
+| Final working WRFNAT (1167 records) | 36 | 0 |
+| Final COM WRFNAT (1167 records) | 36 | 0 |
+| Bitwise identity with R1 | 36 | 0 |
+| Working-to-COM bitwise identity | 36 | 0 |
+| Persistent working lock files | 36 | 0 |
+| Persistent COM lock files | 36 | 0 |
+| Working lock release | 36 | 0 |
+| COM lock release | 36 | 0 |
+| No temporary COM products | 36 | 0 |
+| Total | 468 | 0 |
+
+### Conclusions
+
+All 36 final native GRIB2 products were bitwise
+identical to the original legacy UPP reference.
+
+All 180 independent inventory checks passed.
+
+All 36 COM products were bitwise identical to
+their corresponding working products.
+
+All 72 persistent lock files were retained.
+All 72 locks were successfully reacquired.
+
+No temporary COM publication products remained.
+
+The four output-reliability phases successfully
+supported full 36-member ensemble concurrency.
+
+### Scope and limitations
+
+These results establish reproducibility for the
+tested initialization and runtime configuration.
+
+Concurrency measures overlapping Slurm allocations,
+not simultaneous MPI execution.
+
+Inventory counts cannot detect every possible
+same-count corruption or missing mandatory field.
+
+The portable Python interpreter was supplied
+explicitly. Permanent runtime integration remains
+separate follow-up work.
+
+The initial validation job 26497035 failed due
+to JobIDRaw accounting parsing. The corrected
+validation used JobID and array-member filtering.
+No scientific products were regenerated.
+
+### Acceptance
+
+All 468 validation checks passed with zero failures.
+The implementation is accepted for integration
+into develop.
+
+### Validation provenance
+
+- Experiment directory: /scratch3/NCEPDEV/stmp/Jianping.Huang/ic_prep_regression/R13_final_ensemble_20261115_035753
+- Validation report: /scratch3/NCEPDEV/stmp/Jianping.Huang/ic_prep_regression/R13_final_ensemble_20261115_035753/validation_26497602
+- Detailed results: results.tsv
+- Accounting: accounting.tsv
+- Concurrency: concurrency.txt
+- Workflow checksums: workflow_files.sha256
