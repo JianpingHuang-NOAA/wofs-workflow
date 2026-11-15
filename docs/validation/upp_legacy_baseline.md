@@ -120,3 +120,34 @@ meteorological case or every UPP product.
 The separate stale-output-file issue in the UPP workflow
 will be addressed independently of this scientific baseline
 integration.
+
+## Final GRIB2 inventory verification
+
+- Verification job ID: 26488264
+- Job status: COMPLETED
+- Exit code: 0:0
+- Elapsed time: 00:02:08
+- Ensemble members: 36
+- Total inventory checks: 180
+- Passed checks: 180
+- Failed checks: 0
+
+| Product | Expected records | Members passed |
+|---------|------------------|----------------|
+| Raw WRFNAT | 1000 | 36/36 |
+| Raw WRFTWO (orig.grib2) | 169 | 36/36 |
+| Processed WRFTWO | 167 | 36/36 |
+| Final working-directory WRFNAT | 1167 | 36/36 |
+| Final COM WRFNAT | 1167 | 36/36 |
+
+All intermediate and final GRIB2 inventory checks passed.
+
+The initial inventory verification job (26487266) reported
+36 missing files because the verification script used an
+incorrect filename for the raw WRFTWO product.
+
+After correcting the filename to orig.grib2, all 180 checks
+passed without rerunning IC_PREP or regenerating any products.
+
+The recovered legacy UPP baseline is scientifically validated
+for the complete 36-member IC_PREP regression case.
