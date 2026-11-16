@@ -55,3 +55,165 @@ runtime:
   partition: u1-compute
   qos: debug
   walltime: "00:10:00"
+
+# ============================================================================
+# Phase C: WoFS domain-specific runtime configuration
+#
+# Scientific defaults preserved from Setup_WOFS_RLT.csh.
+# ============================================================================
+
+wps:
+  bc_start_offset_hours: 0
+  bc_duration_hours: 18
+  ic_start_offset_hours: 0
+  ic_duration_hours: 0
+  geog_data_resouter: "10m"
+
+cycling:
+  cycleinterval: 15
+  end_day_offset: 1
+  end_hour: "03"
+  end_minute: "00"
+
+ensemble:
+  ENS_SIZE: 36
+  NANALS: 36
+  HRRRE_BCS: 18
+  FCST_SIZE: 18
+
+wrf:
+  domains: 1
+  grdpts_ew: 301
+  grdpts_ns: 301
+  num_soil_levels: 9
+
+  procx: 2
+  procy: 12
+  procxf: 3
+  procyf: 24
+
+  tiles: 1
+  tilesf: 1
+
+  ts: 15
+  fts: 15
+
+resources:
+  GSI_CORES: 24
+  EKF_CORES: 432
+  EKF_NODES: 20
+  INF_NODES: 3
+  WRF_CORES: 24
+  WRF_FCORES: 128
+  INF_CORES: 96
+
+observations:
+  waitinterval: 8
+  GOESV: 16
+
+additive_noise:
+  lh: "9000.0"
+  lv: "3000.0"
+  u_sd: "0.50"
+  v_sd: "0.50"
+  w_sd: "0.0"
+  t_sd: "0.50"
+  td_sd: "0.50"
+  qv_sd: "0.0"
+  iseed: 1
+  iseed2: 1
+
+gsi_enkf:
+  NZ: 51
+  NLEVS: 50
+  DTinner: 12
+  radt1: 5
+
+  OUTLIER: "3.25"
+
+  COVINFLATENH: "0.0"
+  COVINFLATESH: "0.0"
+  COVINFLATETR: "0.0"
+
+  LOCVERTOPT: 1
+  LOCHOROPT: 1
+  LNSIGCOVINFCUTOFF: 6
+
+  USE_RH: ".false."
+
+  ANALPERTWTNH: "0.0"
+  ANALPERTWTNHMULTI: "0.0"
+  ANALPERTWTNH3KM: "0.0"
+  ANALPERTWTSH: "0.0"
+  ANALPERTWTTR: "0.0"
+
+  COVINFLATEMAX: "1.e2"
+  COVINFLATEMIN: "1.0"
+
+  CORRLENGTHNH: 460
+  CORRLENGTHSH: 460
+  CORRLENGTHTR: 460
+
+  OBTIMELNH: "1.e30"
+  OBTIMELSH: "1.e30"
+  OBTIMELTR: "1.e30"
+
+  IASSIM_ORDER: 0
+
+  LNSIGCUTOFFNH: "0.45"
+  LNSIGCUTOFFSH: "0.45"
+  LNSIGCUTOFFTR: "0.45"
+
+  LNSIGCUTOFFPSNH: "0.45"
+  LNSIGCUTOFFPSSH: "0.45"
+  LNSIGCUTOFFPSTR: "0.45"
+
+  SIMPLE_PARTITION: ".true."
+
+  NLONS: 300
+  NLATS: 300
+
+  SMOOTHPARM: -1
+  NVARS: 22
+
+  PRIOR_INF: 1
+  PRIOR_INF_INITIAL: "1.0"
+  PRIOR_INF_SD_INITIAL: "0.6"
+  PRIOR_INF_DAMPING: "0.9"
+  PRIOR_INF_LOWER_BOUND: "1.0"
+  PRIOR_INF_UPPER_BOUND: "100.0"
+  PRIOR_INF_SD_LOWER_BOUND: "0.6"
+
+  BYTE_ORDER: "Big_Endian"
+
+gsi_fix_files:
+  SATANGL: global_satangbias.txt
+  SATINFO: satinfo.txt
+  CONVINFO: doubled_error_tolerance.txt
+  OZINFO: global_ozinfo.txt
+  BERROR: berror_stats
+  OBERROR: nam_errtable.r3dv
+  ANAVINFO: anavinfo
+  PCPINFO: global_pcpinfo.txt
+  SATBIASING: satbias_in.gsi.start.ABI
+  SATBIASINE: satbias_in.enkf.start.ABI
+  SATBIASPC: satbias_pc.enkf.start.ABI
+
+# All writable runtime directories are isolated by domain.
+domain_directories:
+  RUNDIR: ${WORK_ROOT}
+  FCST_DIR: ${RUNDIR}/FCST
+  WRF_RUN: ${RUNDIR}/WRF_RUN
+  GSI_RUN: ${RUNDIR}/GSI_RUN
+  ENKFDIR: ${RUNDIR}/enkfdir
+  RESULTSDIR: ${RUNDIR}/results
+  SEMA4: ${RUNDIR}/flags
+
+  OBSDIR: ${RUNDIR}/OBSGEN
+  RADAR_OBS_DIR: ${OBSDIR}/RADAR
+  SAT_OBS_DIR: ${OBSDIR}/SATELLITE
+
+  INPUTDIR: ${RUNDIR}/WRFINPUTS
+  SHARED_INPUTDIR: ${COMOUT}/INPUT
+
+  DOMAIN_RUN_LOG_DIR: ${DOMAIN_LOG_DIR}/${PDY}/${cyc}/${region}
