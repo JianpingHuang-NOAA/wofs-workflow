@@ -5,7 +5,11 @@ import numpy as N
 import time as timeit
 import sys
 from optparse import OptionParser
-from mpl_toolkits.basemap import Basemap
+from pyproj import Proj
+import cartopy.crs as ccrs
+from cartopy.io import shapereader
+from matplotlib.patches import Circle
+import os
 
 from pathlib import Path
 from datetime import datetime
@@ -81,6 +85,11 @@ radar_buf_dis         = 100000.
 __r_earth              = 6367000.0
 __truelat1, __truelat2 = 38.5, 38.5
 
+# Legacy Basemap default spherical Earth radius.
+# Preserve separately from the domain corner radius.
+__projection_radius = 6370997.0
+__projection_lon_0 = -97.5
+
 #==================================================================================
 def read_radar_location_file(_radar_file):
 
@@ -136,68 +145,94 @@ def read_sfc_station_file(_station_file):
 
 #==================================================================================
 
-def mybasemap(sw_lat, sw_lon, ne_lat, ne_lon, scale = 1.0, ticks = True,
-              resolution='l', area_thresh = 1000., shape_env = False,
-              counties=False, states = False, countries=False, coastlines=False,
-              lat_lines=0, lon_lines=0,
-              pickle = False, ax=None, lon_0 = None, lat_0 = None):
+def create_projection(lat_0):
+    """Scientific projection matching legacy Basemap."""
 
-    tt = timeit.perf_counter()
+    return Proj(
+        proj="lcc",
+        lat_0=lat_0,
+        lon_0=__projection_lon_0,
+        lat_1=__truelat1,
+        lat_2=__truelat2,
+        R=__projection_radius,
+        units="m",
+    )
 
-    if lon_0 == None:
-        lon_0=0.5*(sw_lon+ne_lon)
 
-    if lat_0 == None:
-        lat_0=0.5*(sw_lat+ne_lat)
+def create_map_crs(lat_0):
+    """Cartopy projection matching the scientific projection."""
 
-    map = Basemap(llcrnrlon=sw_lon, llcrnrlat=sw_lat,
-                  urcrnrlon=ne_lon, urcrnrlat=ne_lat,
-#                  lat_0=lat_0, lon_0=lon_0,
-                  lat_0=lat_0, lon_0=-97.5,
-                  lat_1 = __truelat1, lat_2 = __truelat2,
-                  projection = 'lcc',
-                  resolution=resolution,
-                  area_thresh=area_thresh,
-                  suppress_ticks=ticks, ax=ax)
+    globe = ccrs.Globe(
+        semimajor_axis=__projection_radius,
+        semiminor_axis=__projection_radius,
+        ellipse=None,
+    )
 
-    if counties:
-        map.drawcounties()
+    return ccrs.LambertConformal(
+        central_longitude=__projection_lon_0,
+        central_latitude=lat_0,
+        standard_parallels=(
+            __truelat1,
+            __truelat2,
+        ),
+        globe=globe,
+    )
 
-    if states:
-        map.drawstates()
 
-    if countries:
-        map.drawcountries()
+def add_map_background(ax):
+    """Read local geographical datasets without downloads."""
 
-    if coastlines:
-        map.drawcoastlines()
+    default_dir = (
+        Path(__file__).resolve().parents[1]
+        / "fix" / "cartopy"
+    )
 
-    if lat_lines > 0:
-        lat_lines = N.arange(sw_lat, ne_lat, lat_lines)
-        map.drawparallels(lat_lines, labels=[True, False, False, False])
+    data_dir = Path(
+        os.environ.get(
+            "CARTOPY_DATA_DIR",
+            str(default_dir),
+        )
+    ).resolve()
 
-    if lon_lines > 0:
-        lon_lines = N.arange(sw_lon, ne_lon, lon_lines)
-        map.drawmeridians(lon_lines, labels=[False, False, False, True])
+    datasets = [
+        ("physical", "coastline", 0.6),
+        ("cultural", "admin_0_boundary_lines_land", 0.6),
+        ("cultural", "admin_1_states_provinces_lines", 0.4),
+    ]
 
-# Shape file stuff
+    for category, name, linewidth in datasets:
 
-    if shape_env:
+        shp = (
+            data_dir
+            / "shapefiles"
+            / "natural_earth"
+            / category
+            / f"ne_50m_{name}.shp"
+        )
 
-        for item in shape_env:
-            items = item.split(",")
-            shapefile  = items[0]
-            color      = items[1]
-            linewidth  = float(items[2])
+        for suffix in (".shp", ".shx", ".dbf", ".prj"):
+            required = shp.with_suffix(suffix)
 
-            s = map.readshapefile(shapefile,'shapeinfo',drawbounds=False)
+            if not required.is_file():
+                raise FileNotFoundError(
+                    f"Missing Cartopy fix file: {required}"
+                )
 
-            for shape in map.shapeinfo:
-                xx, yy = zip(*shape)
-                #map.plot(xx,yy,color=color,linewidth=linewidth,ax=ax)
-                map.plot(xx,yy,color='gray',linewidth=linewidth,ax=ax)
+        reader = shapereader.Reader(str(shp))
 
-    return map
+        try:
+            geometries = list(reader.geometries())
+        finally:
+            reader.close()
+
+        ax.add_geometries(
+            geometries,
+            crs=ccrs.PlateCarree(),
+            facecolor="none",
+            edgecolor="black",
+            linewidth=linewidth,
+        )
+
 
 #//////////////////////////////////////////// MAIN ///////////////////////////////////////////////
 
@@ -294,14 +329,29 @@ print("  Read in radar file successfully\n")
 print('------------------------------------------------------------------------------------\n')
 
 
-fig, (ax1) = P.subplots(1, 1, sharey=True, figsize=(7,7))
+# Scientific coordinate transformation.
+map = create_projection(lat_c)
 
-# need the WOFS grid location for map projection
+# Matching Cartopy visualization projection.
+map_crs = create_map_crs(lat_c)
+
+fig, ax1 = P.subplots(
+    1,
+    1,
+    figsize=(7, 7),
+    subplot_kw={"projection": map_crs},
+)
+
+# Preserve the legacy projected background extent.
+xmin, ymin = map(-122.7195, 21.13812)
+xmax, ymax = map(-60.84946, 47.85785)
+
+ax1.set_xlim(xmin, xmax)
+ax1.set_ylim(ymin, ymax)
+
+add_map_background(ax1)
 
 print("The lat_c and lon_c are: %s %s" % (lat_c, lon_c))
-
-#map = mybasemap(22.5, -110., 45., -72., states=True, countries=True, coastlines=True, ax=ax1, lat_0=lat_c, lon_0=lon_c)
-map = mybasemap(21.13812, -122.7195, 47.85785, -60.84946, states=True, countries=True, coastlines=True, ax=ax1, lat_0=lat_c, lon_0=-97.5)
 
 ##Plot HRRR grid with boundary strips....
 #
@@ -362,7 +412,13 @@ glat = N.rad2deg(glat)
 
 xg, yg = map(glon, glat)
 
-P.fill(xg, yg, linewidth=2, color='g', alpha=0.2)
+ax1.fill(
+    xg, yg,
+    linewidth=2,
+    color="g",
+    alpha=0.2,
+    transform=map_crs,
+)
 
 #P.title("27 April 2011 \n 100 km bounding boxes \n Radars (150 km range rings)", fontsize=18)
 P.title("Radar locations within experimental WoFS grid shown as blue dots with 150-km range rings \n \n \n SYSTEM STATUS: RUNNING", y=-0.25, fontsize=10)
@@ -388,14 +444,25 @@ for key in radars:
         radar_alt.append(radars[key][2])
         radar_name.append(key)
 
-        circle1 = P.Circle((x,y), 150000.,color='gray', linewidth=1, fill=False)
-        fig.gca().add_artist(circle1)
+        circle1 = Circle(
+            (x, y),
+            150000.,
+            color="gray",
+            linewidth=1,
+            fill=False,
+            transform=map_crs,
+        )
 
-#        circle = P.Circle((x,y), 2500.,color='blue', fill=False)
-#        fig.gca().add_artist(circle)
+        ax1.add_patch(circle1)
 
-        circle = P.scatter(x, y, 3, marker='o', color='blue')
-        fig.gca().add_artist(circle)
+        ax1.scatter(
+            x, y,
+            s=3,
+            marker="o",
+            color="blue",
+            transform=map_crs,
+        )
+
 
 # *** Added by Brett Roberts 2019-04-24 ***
 # Attempts to plot red polygon for today's HWT daily domain when -d is used
@@ -420,7 +487,7 @@ if options.hwtdd:
      hwtx, hwty = map( hwtdd_lons, hwtdd_lats )
      hwtxy = N.array( list(zip(hwtx, hwty)) )
      hwtpoly = matplotlib.patches.Polygon( hwtxy , fill=False, edgecolor='red', linewidth=2 )
-     P.gca().add_patch(hwtpoly)
+     ax1.add_patch(hwtpoly)
 #    except Exception:
 #        print('Plotting of HWT daily domain failed; JSON file may not exist in ' + str(dir_json))
 
@@ -465,11 +532,8 @@ print("\n  Found %d radars within domain\n" % nradars)
 
 fout2 = output_dir / f"WOFS_domain_{event}_{region}.png"
 
-if options.plot:
-    P.savefig(fout2)
-    P.show()
-else:
-    P.savefig(fout2)
+fig.savefig(fout2)
+P.close(fig)
 
 print('\n------------------------------------------------------------------------------------\n')
 print("\n  Wrote out plot file with name %s\n" % fout2)
