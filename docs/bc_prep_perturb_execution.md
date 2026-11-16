@@ -245,7 +245,7 @@ The runtime configuration includes:
 | pygrib | 2.1.8 |
 | ecCodes | 2.44.0 |
 
-See bc_prep_python_runtime.md for installation, version
+See wofs_python_runtime.md for installation, version
 metadata, and runtime-validation details.
 
 ## 12. Safety and recovery validation

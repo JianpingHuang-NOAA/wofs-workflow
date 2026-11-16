@@ -1,10 +1,11 @@
-# WoFS v1.0 BC_PREP Python Runtime
+# WoFS v1.0 Shared Python Runtime
 
 ## 1. Purpose
 
-The BC_PREP PERTURB workflow uses a standardized Python 3.11
-environment for converting perturbed HRRR atmospheric fields
-from NetCDF to GRIB2.
+WoFS uses a shared Python 3.11 runtime for IC_PREP and BC_PREP.
+The environment supports YAML configuration, NetCDF processing,
+and conversion of perturbed HRRR fields from NetCDF to GRIB2.
+Additional components may use this runtime as they are integrated.
 
 The runtime replaces the legacy Python 3.6 environment while
 preserving scientific results and eliminating dependencies on
@@ -19,7 +20,7 @@ The Python runtime consists of:
 - Four explicitly pinned packages installed in the virtual
   environment.
 - Runtime version and package-location validation.
-- Python user-site isolation in the PERTURB Slurm wrapper.
+- Python user-site isolation through shared runtime initialization.
 
 The virtual environment depends on the NOAA base Python
 installation and is not a standalone Python distribution.
@@ -28,11 +29,13 @@ installation and is not a standalone Python distribution.
 
 | File | Purpose |
 | --- | --- |
-| versions/bc_prep.ver | Validated runtime version metadata |
+| versions/run.ver | Shared runtime version metadata |
+| versions/bc_prep.ver | BC_PREP runtime configuration |
 | modulefiles/ursa_bc_prep.lua | BC_PREP runtime modules |
-| sorc/requirements_bc_prep.txt | Pinned virtual environment packages |
-| sorc/install_bc_prep_python.sh | Python environment installer |
-| tests/check_bc_prep_python.sh | Comprehensive runtime validator |
+| sorc/requirements_wofs.txt | Pinned virtual environment packages |
+| sorc/install_wofs_python.sh | Python environment installer |
+| tests/check_wofs_python.sh | Comprehensive runtime validator |
+| ush/load_wofs_python.sh | Shared runtime initialization |
 | workflow/shell/bc_prep/jwofs_bc_prep_perturb.sh | Runtime initialization and isolation |
 
 ## 4. Validated Python packages
@@ -72,12 +75,18 @@ Run the following commands from the WoFS repository root.
 
     export HOMEwofs="$(pwd -P)"
 
+    bash "$HOMEwofs/sorc/install_wofs_python.sh"
+
+The default installation directory is `$HOMEwofs/python_env`.
+
+A custom absolute installation path may also be specified:
+
     export WOFS_VENV=/absolute/path/to/wofs_py311
+    bash "$HOMEwofs/sorc/install_wofs_python.sh" "$WOFS_VENV"
 
-    bash "$HOMEwofs/sorc/install_bc_prep_python.sh" "$WOFS_VENV"
-
-The destination must be an absolute path that does not
-already exist.
+An existing environment is validated without being overwritten.
+If validation succeeds, no installation is required.
+If validation fails, the installer exits with an error.
 
 The installer loads the standardized BC_PREP modules,
 validates the NOAA base Python environment, creates a
@@ -95,9 +104,9 @@ either through the configured package index or a local cache.
     module use "$HOMEwofs/modulefiles"
     module load "$wofs_modulefile"
 
-    export WOFS_PYTHON="$WOFS_VENV/bin/python3"
+    export WOFS_PYTHON="${WOFS_VENV:-$HOMEwofs/python_env}/bin/python3"
 
-    bash "$HOMEwofs/tests/check_bc_prep_python.sh" "$WOFS_PYTHON"
+    bash "$HOMEwofs/tests/check_wofs_python.sh" "$WOFS_PYTHON"
 
 The validator checks:
 
@@ -117,10 +126,10 @@ be preserved.
 
 ## 8. PERTURB execution
 
-Before submitting a PERTURB job, explicitly select the
-validated Python environment:
+The shared runtime loader selects `$HOMEwofs/python_env` by default.
+For a custom environment, explicitly select the interpreter:
 
-    export WOFS_PYTHON="$WOFS_VENV/bin/python3"
+    export WOFS_PYTHON="${WOFS_VENV:-$HOMEwofs/python_env}/bin/python3"
 
 The PERTURB Slurm wrapper loads the BC_PREP modules and
 enforces:
@@ -251,5 +260,9 @@ Changes to the NOAA Python module or Python packages require
 review and regression validation before updating the
 version metadata.
 
-This migration applies to BC_PREP PERTURB. IC_PREP and the
-other BC_PREP stages are outside the scope of this change.
+The scientific regression results documented in Section 9 apply
+to BC_PREP PERTURB. They do not independently establish scientific
+validation of IC_PREP or other WoFS components.
+
+The shared runtime infrastructure supports IC_PREP and BC_PREP.
+Future components will require dependency and runtime validation.

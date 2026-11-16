@@ -1,2 +1,0 @@
-# Compatibility requirements for BC_PREP.
--r requirements_wofs.txt

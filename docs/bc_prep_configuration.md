@@ -280,7 +280,7 @@ implementation.
 
 ## 12. Related documentation
 
-- docs/bc_prep_python_runtime.md
+- docs/wofs_python_runtime.md
 - docs/bc_prep_perturb_execution.md
 - parm/bc_prep/config.yaml
 - tests/check_bc_prep_config.py
