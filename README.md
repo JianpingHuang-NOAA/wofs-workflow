@@ -28,7 +28,7 @@ NOAA RDHPCS Ursa
 The workflow will be developed incrementally:
 
 - Phase 1: IC_PREP and BC_PREP
-- Phase 2: WPS and OBS_PREP
+- Phase 2: DOMAIN SETUP, WPS and OBS_PREP
 - Phase 3: GSI/EnKF and FCST
 - Phase 4: POST and PLOT
 - Phase 5: End-to-end testing and validation
