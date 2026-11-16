@@ -66,3 +66,9 @@ export g2c_ver=2.1.0
 
 export upp_modulefile=ursa_upp
 export spack_stack_ver=1.9.2
+
+# DOMAIN_SETUP geographical and plotting dependencies
+export matplotlib_ver=3.10.1
+export cartopy_ver=0.25.0
+export shapely_ver=2.1.2
+export pyshp_ver=2.3.1

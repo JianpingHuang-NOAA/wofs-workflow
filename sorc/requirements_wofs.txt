@@ -7,3 +7,8 @@ pygrib==2.1.8
 pyproj==3.7.2
 netCDF4==1.7.4
 cftime==1.6.5
+
+# DOMAIN_SETUP geographical and plotting dependencies
+cartopy==0.25.0
+shapely==2.1.2
+pyshp==2.3.1
