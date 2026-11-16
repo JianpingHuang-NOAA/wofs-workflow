@@ -83,6 +83,10 @@ packages = [
     ("cftime", "cftime", "cftime_ver", True),
     ("pyproj", "pyproj", "pyproj_ver", True),
     ("pygrib", "pygrib", "pygrib_ver", True),
+    ("matplotlib", "matplotlib", "matplotlib_ver", False),
+    ("cartopy", "cartopy", "cartopy_ver", True),
+    ("shapely", "shapely", "shapely_ver", True),
+    ("shapefile", "pyshp", "pyshp_ver", True),
 ]
 
 print()
@@ -192,6 +196,70 @@ try:
 except Exception as exc:
     print("[FAIL] Native library validation:", exc)
     failed.append("native libraries")
+
+print()
+print("===== Geographical library validation =====")
+
+try:
+    import math
+    import matplotlib
+    import cartopy.crs as ccrs
+    import shapely
+    from shapely.geometry import Point
+    from pyproj import Proj
+
+    # Lambert conformal projection.
+    projection = Proj(
+        proj="lcc",
+        lat_1=38.5,
+        lat_2=38.5,
+        lat_0=36.14885,
+        lon_0=-97.5,
+        R=6367000.0,
+        units="m",
+    )
+
+    x, y = projection(-97.16102, 36.14885)
+
+    check_condition(
+        "PyProj Lambert conformal transformation",
+        math.isfinite(x) and math.isfinite(y),
+    )
+
+    # Cartopy coordinate transformation.
+    crs = ccrs.LambertConformal(
+        central_longitude=-97.5,
+        central_latitude=36.14885,
+        standard_parallels=(38.5, 38.5),
+        globe=ccrs.Globe(
+            semimajor_axis=6367000.0,
+            semiminor_axis=6367000.0,
+            ellipse=None,
+        ),
+    )
+
+    cx, cy = crs.transform_point(
+        -97.16102,
+        36.14885,
+        ccrs.PlateCarree(),
+    )
+
+    check_condition(
+        "Cartopy Lambert conformal transformation",
+        math.isfinite(cx) and math.isfinite(cy),
+    )
+
+    check_condition(
+        "Shapely geometry operations",
+        Point(0, 0).buffer(1).is_valid,
+    )
+
+    print("GEOS:", shapely.geos_version_string)
+    print("Matplotlib:", matplotlib.__version__)
+
+except Exception as exc:
+    print(f"[FAIL] Geographical libraries: {exc}")
+    failed.append("geographical libraries")
 
 if failed:
     print()

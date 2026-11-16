@@ -1,0 +1,15 @@
+#!/bin/bash
+#
+# WoFS v1.0 - DOMAIN_SETUP Runtime Versions
+# NCO EE2-style version definitions
+#
+
+: "${HOMEwofs:?HOMEwofs must be set}"
+
+# Common WoFS runtime and Python dependencies
+source "${HOMEwofs}/versions/run.ver"
+
+# DOMAIN_SETUP component settings
+export wofs_component=domain_setup
+export wofs_modulefile=ursa_intel
+

@@ -1,0 +1,254 @@
+# ============================================================================
+# WoFS v1.0 DOMAIN_SETUP configuration
+#
+# Supports independent, on-demand WoFS domain launches.
+# Up to three domains may run simultaneously.
+#
+# Launch parameters may be overridden through environment variables.
+#
+# Runtime variables:
+#   HOMEwofs       Repository root
+#   DATAROOT       Working-data root
+#   COMROOT        COM data root
+#   PDY            Event date (YYYYMMDD)
+#   cyc            Starting UTC hour (HH)
+#   region         Domain identifier
+#   CENTER_LAT     Domain center latitude
+#   CENTER_LON     Domain center longitude
+#   WIDTH_KM       Domain width in kilometers
+# ============================================================================
+
+workflow:
+  event: "20261102"
+  start_hour: "15"
+  region: CSP
+
+grid:
+  center_lat: 36.14885
+  center_lon: -97.16102
+  width_km: 900
+
+
+# On-demand WoFS domains.
+# Enable one, two, or three domains per submission.
+domains:
+  - region: CSP
+    enabled: true
+    center_lat: 36.14885
+    center_lon: -97.16102
+    width_km: 900
+
+  - region: NGP
+    enabled: true
+    center_lat: 44.00000
+    center_lon: -100.00000
+    width_km: 900
+
+  - region: SE
+    enabled: true
+    center_lat: 33.00000
+    center_lon: -85.00000
+    width_km: 900
+
+# Shared WoFS Python runtime and offline Cartopy FIX data.
+python:
+  env: ${HOMEwofs}/python_env
+  cartopy_data_dir: ${HOMEwofs}/fix/cartopy
+
+paths:
+  dataroot: /scratch3/NCEPDEV/stmp/Jianping.Huang
+
+  # Parent directory for DOMAIN_SETUP job-specific DATA.
+  work_root: ${DATAROOT}/domain_setup/${PDY}/${cyc}/${region}
+
+  comroot: ${DATAROOT}/com/wofs/v1.0
+  comout: ${COMROOT}/wofs.${PDY}/${cyc}
+  comout_domain: ${COMOUT}/${region}
+
+  station_dir: ${HOMEwofs}/parm/domain_setup
+  radar_script: ${HOMEwofs}/ush/WoFS_grid_radars.py
+
+  log_dir: ${DATAROOT}/logs/wofsv1.0/domain_setup
+
+files:
+  radar_config: radars_${PDY}_${region}.csh
+  domain_plot: WOFS_domain_${PDY}_${region}.png
+  runtime_config: realtime.cfg.${PDY}.${region}
+
+runtime:
+  sendcom: true
+  # true: retain temporary DATA
+  # false: remove DATA after successful COM publication
+  keepdata: false
+  modulefile: ursa_intel
+  mpi_tasks: 1
+  cpus_per_task: 1
+  partition: u1-compute
+  qos: debug
+  walltime: "00:10:00"
+
+# ============================================================================
+# Phase C: WoFS domain-specific runtime configuration
+#
+# Scientific defaults preserved from Setup_WOFS_RLT.csh.
+# ============================================================================
+
+wps:
+  bc_start_offset_hours: 0
+  bc_duration_hours: 18
+  ic_start_offset_hours: 0
+  ic_duration_hours: 0
+  geog_data_resouter: "10m"
+
+cycling:
+  cycleinterval: 15
+  end_day_offset: 1
+  end_hour: "03"
+  end_minute: "00"
+
+ensemble:
+  ENS_SIZE: 36
+  NANALS: 36
+  HRRRE_BCS: 18
+  FCST_SIZE: 18
+
+wrf:
+  domains: 1
+  grdpts_ew: 301
+  grdpts_ns: 301
+  num_soil_levels: 9
+
+  procx: 2
+  procy: 12
+  procxf: 3
+  procyf: 24
+
+  tiles: 1
+  tilesf: 1
+
+  ts: 15
+  fts: 15
+
+resources:
+  GSI_CORES: 24
+  EKF_CORES: 432
+  EKF_NODES: 20
+  INF_NODES: 3
+  WRF_CORES: 24
+  WRF_FCORES: 128
+  INF_CORES: 96
+
+observations:
+  waitinterval: 8
+  GOESV: 16
+
+additive_noise:
+  lh: "9000.0"
+  lv: "3000.0"
+  u_sd: "0.50"
+  v_sd: "0.50"
+  w_sd: "0.0"
+  t_sd: "0.50"
+  td_sd: "0.50"
+  qv_sd: "0.0"
+  iseed: 1
+  iseed2: 1
+
+gsi_enkf:
+  NZ: 51
+  NLEVS: 50
+  DTinner: 12
+  radt1: 5
+
+  OUTLIER: "3.25"
+
+  COVINFLATENH: "0.0"
+  COVINFLATESH: "0.0"
+  COVINFLATETR: "0.0"
+
+  LOCVERTOPT: 1
+  LOCHOROPT: 1
+  LNSIGCOVINFCUTOFF: 6
+
+  USE_RH: ".false."
+
+  ANALPERTWTNH: "0.0"
+  ANALPERTWTNHMULTI: "0.0"
+  ANALPERTWTNH3KM: "0.0"
+  ANALPERTWTSH: "0.0"
+  ANALPERTWTTR: "0.0"
+
+  COVINFLATEMAX: "1.e2"
+  COVINFLATEMIN: "1.0"
+
+  CORRLENGTHNH: 460
+  CORRLENGTHSH: 460
+  CORRLENGTHTR: 460
+
+  OBTIMELNH: "1.e30"
+  OBTIMELSH: "1.e30"
+  OBTIMELTR: "1.e30"
+
+  IASSIM_ORDER: 0
+
+  LNSIGCUTOFFNH: "0.45"
+  LNSIGCUTOFFSH: "0.45"
+  LNSIGCUTOFFTR: "0.45"
+
+  LNSIGCUTOFFPSNH: "0.45"
+  LNSIGCUTOFFPSSH: "0.45"
+  LNSIGCUTOFFPSTR: "0.45"
+
+  SIMPLE_PARTITION: ".true."
+
+  NLONS: 300
+  NLATS: 300
+
+  SMOOTHPARM: -1
+  NVARS: 22
+
+  PRIOR_INF: 1
+  PRIOR_INF_INITIAL: "1.0"
+  PRIOR_INF_SD_INITIAL: "0.6"
+  PRIOR_INF_DAMPING: "0.9"
+  PRIOR_INF_LOWER_BOUND: "1.0"
+  PRIOR_INF_UPPER_BOUND: "100.0"
+  PRIOR_INF_SD_LOWER_BOUND: "0.6"
+
+  BYTE_ORDER: "Big_Endian"
+
+gsi_fix_files:
+  SATANGL: global_satangbias.txt
+  SATINFO: satinfo.txt
+  CONVINFO: doubled_error_tolerance.txt
+  OZINFO: global_ozinfo.txt
+  BERROR: berror_stats
+  OBERROR: nam_errtable.r3dv
+  ANAVINFO: anavinfo
+  PCPINFO: global_pcpinfo.txt
+  SATBIASING: satbias_in.gsi.start.ABI
+  SATBIASINE: satbias_in.enkf.start.ABI
+  SATBIASPC: satbias_pc.enkf.start.ABI
+
+# Persistent domain products and downstream COM paths.
+# Individual tasks create and manage their own temporary DATA.
+domain_directories:
+  SHARED_INPUTDIR: ${COMOUT}/INPUT
+
+  DOMAIN_COM_DIR: ${COMOUT_DOMAIN}
+
+  WPS_COM_DIR: ${COMOUT_DOMAIN}/WPS
+  WPS_IC_COM_DIR: ${WPS_COM_DIR}/IC
+  WPS_BC_COM_DIR: ${WPS_COM_DIR}/BC
+
+  OBS_COM_DIR: ${COMOUT_DOMAIN}/OBS
+  RADAR_OBS_COM_DIR: ${OBS_COM_DIR}/RADAR
+  SAT_OBS_COM_DIR: ${OBS_COM_DIR}/SATELLITE
+
+  DA_COM_DIR: ${COMOUT_DOMAIN}/DA
+
+  FCST_COM_DIR: ${COMOUT_DOMAIN}/FCST
+  POST_COM_DIR: ${COMOUT_DOMAIN}/POST
+  PLOT_COM_DIR: ${COMOUT_DOMAIN}/PLOT
+
+  DOMAIN_RUN_LOG_DIR: ${DOMAIN_LOG_DIR}/${PDY}/${cyc}/${region}
