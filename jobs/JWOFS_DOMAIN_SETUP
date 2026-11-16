@@ -1,0 +1,65 @@
+#!/bin/bash
+#
+# WoFS v1.0 DOMAIN_SETUP - NCO-style J-job
+#
+
+set -euo pipefail
+
+: "${HOMEwofs:?HOMEwofs must be defined}"
+
+export RUN_ENVIR="${RUN_ENVIR:-nco}"
+export NET="${NET:-wofs}"
+export RUN="${RUN:-wofs}"
+export model="${model:-wofs}"
+export envir="${envir:-test}"
+export wofs_ver="${wofs_ver:-v1.0.0}"
+
+export SCRIPTWOfS="${HOMEwofs}/scripts"
+export PARMWOfS="${HOMEwofs}/parm"
+export FIXWOfS="${HOMEwofs}/fix"
+export EXECSWOfS="${HOMEwofs}/exec"
+export USHWOfS="${HOMEwofs}/ush"
+export UTILWOfS="${HOMEwofs}/util"
+
+export DOMAIN_SETUP_CONFIG="${DOMAIN_SETUP_CONFIG:-${PARMWOfS}/domain_setup/config.yaml}"
+
+# Load domain-specific configuration.
+source "${USHWOfS}/load_domain_config.sh"
+
+mkdir -p "${WORK_ROOT}"
+
+# Prevent concurrent setup of the same date/cycle/domain.
+# Keep the lock file after execution.
+LOCK_FILE="${WORK_ROOT}/.domain_setup.lock"
+
+exec 9>>"${LOCK_FILE}"
+
+if ! flock -n 9; then
+    echo "[ERROR] DOMAIN_SETUP already running: ${CDATE}/${region}" >&2
+    exit 75
+fi
+
+echo "======================================================"
+echo " WoFS v1.0 DOMAIN_SETUP - J-job"
+echo "======================================================"
+echo "HOMEwofs       = ${HOMEwofs}"
+echo "CDATE          = ${CDATE}"
+echo "region         = ${region}"
+echo "CENTER_LAT     = ${CENTER_LAT}"
+echo "CENTER_LON     = ${CENTER_LON}"
+echo "WIDTH_KM       = ${WIDTH_KM}"
+echo "WORK_ROOT      = ${WORK_ROOT}"
+echo "COMOUT_DOMAIN  = ${COMOUT_DOMAIN}"
+echo "WOFS_PYTHON    = ${WOFS_PYTHON}"
+echo "SENDCOM        = ${SENDCOM}"
+echo "======================================================"
+
+if "${SCRIPTWOfS}/exwofs_domain_setup.sh"; then
+    echo "[PASS] JWOFS_DOMAIN_SETUP completed successfully"
+    echo "CDATE=${CDATE} region=${region}"
+else
+    status=$?
+    echo "[ERROR] DOMAIN_SETUP failed: rc=${status}" >&2
+    exit "${status}"
+fi
+
