@@ -6,13 +6,31 @@
 set -euo pipefail
 
 : "${HOMEwofs:?HOMEwofs is required}"
+# =========================================================
+# Controller mode: submit all enabled domains.
+# =========================================================
+
+if [[ "${DOMAIN_SETUP_MODE:-worker}" == controller ]]; then
+
+    : "${DOMAIN_SETUP_CONFIG:?DOMAIN_SETUP_CONFIG is required}"
+
+    echo "===== DOMAIN_SETUP: Submit enabled domains ====="
+
+    exec python3         "${HOMEwofs}/ush/submit_domain_setup.py"         --config "${DOMAIN_SETUP_CONFIG}"         "$@"
+
+fi
+
+# =========================================================
+# Worker mode: execute domain-specific processing.
+# =========================================================
+
 : "${WOFS_PYTHON:?WOFS_PYTHON is required}"
-: "${WORK_ROOT:?WORK_ROOT is required}"
+: "${DATA:?DATA is required}"
 : "${COMOUT_DOMAIN:?COMOUT_DOMAIN is required}"
 
 USH="${HOMEwofs}/ush"
 
-cd "${WORK_ROOT}"
+cd "${DATA}"
 
 echo "===== Step 1: Generate domain and radar settings ====="
 
@@ -23,7 +41,7 @@ echo "===== Step 1: Generate domain and radar settings ====="
     --event "${PDY}" \
     --start-hour "${cyc}" \
     --station-dir "${STATION_DIR}" \
-    --output-dir "${WORK_ROOT}" \
+    --output-dir "${DATA}" \
     --plot
 
 echo
@@ -33,18 +51,7 @@ echo "===== Step 2: Generate runtime configuration ====="
     "${USH}/generate_domain_runtime_config.py"
 
 echo
-echo "===== Step 3: Initialize runtime directories ====="
-
-"${WOFS_PYTHON}" \
-    "${USH}/initialize_domain_runtime.py"
-
-echo
-echo "===== Step 4: Stage runtime resources ====="
-
-"${USH}/stage_domain_runtime.sh"
-
-echo
-echo "===== Step 5: Validate domain products ====="
+echo "===== Step 3: Validate domain products ====="
 
 products=(
     "${RADAR_CONFIG}"
@@ -54,7 +61,7 @@ products=(
 
 for name in "${products[@]}"; do
 
-    src="${WORK_ROOT}/${name}"
+    src="${DATA}/${name}"
 
     if [[ ! -s "${src}" ]]; then
         echo "[ERROR] Missing or empty product: ${src}" >&2
@@ -65,7 +72,7 @@ for name in "${products[@]}"; do
 done
 
 echo
-echo "===== Step 6: Publish domain products ====="
+echo "===== Step 4: Publish domain products ====="
 
 if [[ "${SENDCOM}" == YES ]]; then
 
@@ -104,7 +111,7 @@ if [[ "${SENDCOM}" == YES ]]; then
     for name in "${products[@]}"; do
 
         publish_file \
-            "${WORK_ROOT}/${name}" \
+            "${DATA}/${name}" \
             "${COMOUT_DOMAIN}/${name}"
 
     done
@@ -120,7 +127,7 @@ echo "======================================================"
 echo " DOMAIN_SETUP SUCCESS"
 echo " CDATE  = ${CDATE}"
 echo " region = ${region}"
-echo " WORK   = ${WORK_ROOT}"
+echo " WORK   = ${DATA}"
 echo " COM    = ${COMOUT_DOMAIN}"
 echo "======================================================"
 

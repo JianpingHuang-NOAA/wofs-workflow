@@ -59,9 +59,10 @@ ${HOMEwofs}/parm/domain_setup/config.yaml}"
     echo "Region : $region"
     echo "Center : $CENTER_LAT $CENTER_LON"
     echo "Width  : $WIDTH_KM km"
-    echo "WORK   : $WORK_ROOT"
+    echo "WORK   : $DOMAIN_WORK_ROOT"
     echo "COM    : $COMOUT_DOMAIN"
     echo "SENDCOM: $SENDCOM"
+    echo "KEEPDATA: $KEEPDATA"
 
     return 0
 }

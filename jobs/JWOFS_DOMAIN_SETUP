@@ -23,14 +23,55 @@ export UTILWOfS="${HOMEwofs}/util"
 
 export DOMAIN_SETUP_CONFIG="${DOMAIN_SETUP_CONFIG:-${PARMWOfS}/domain_setup/config.yaml}"
 
+# Determine DOMAIN_SETUP execution mode.
+export DOMAIN_SETUP_MODE="${DOMAIN_SETUP_MODE:-worker}"
+
+case "${DOMAIN_SETUP_MODE}" in
+
+    controller)
+
+        echo "===== JWOFS_DOMAIN_SETUP: Controller mode ====="
+
+        exec /bin/bash "${SCRIPTWOfS}/exwofs_domain_setup.sh" "$@"
+
+        ;;
+
+    worker)
+
+        echo "===== JWOFS_DOMAIN_SETUP: Worker mode ====="
+
+        ;;
+
+    *)
+
+        echo "[ERROR] Invalid DOMAIN_SETUP_MODE: ${DOMAIN_SETUP_MODE}" >&2
+        exit 1
+
+        ;;
+
+esac
+
 # Load domain-specific configuration.
 source "${USHWOfS}/load_domain_config.sh"
 
-mkdir -p "${WORK_ROOT}"
+# Persistent parent for the domain-level lock and job DATA.
+mkdir -p -- "${DOMAIN_WORK_ROOT}"
 
-# Prevent concurrent setup of the same date/cycle/domain.
-# Keep the lock file after execution.
-LOCK_FILE="${WORK_ROOT}/.domain_setup.lock"
+# Reject unexpected symbolic-link redirection.
+EXPECTED_ROOT="${DATAROOT}/domain_setup/${PDY}/${cyc}/${region}"
+
+if [[ "$(realpath -e -- "${DOMAIN_WORK_ROOT}")" != "${EXPECTED_ROOT}" ]]; then
+    echo "[ERROR] Unexpected DOMAIN_WORK_ROOT" >&2
+    exit 1
+fi
+
+# Keep the domain-level lock outside disposable DATA.
+LOCK_FILE="${DOMAIN_WORK_ROOT}/.domain_setup.lock"
+
+if [[ -L "${LOCK_FILE}" ]]; then
+    echo "[ERROR] Domain lock cannot be a symbolic link" >&2
+    exit 1
+fi
 
 exec 9>>"${LOCK_FILE}"
 
@@ -38,6 +79,18 @@ if ! flock -n 9; then
     echo "[ERROR] DOMAIN_SETUP already running: ${CDATE}/${region}" >&2
     exit 75
 fi
+
+# Create a new temporary directory for this execution.
+DATA="$(mktemp -d "${DOMAIN_WORK_ROOT}/job.XXXXXXXX")"
+
+export DATA
+export WORK_ROOT="${DATA}"
+
+# Preserve the original directory identity for safe cleanup.
+readonly CREATED_DATA="${DATA}"
+readonly CREATED_DATA_ID="$(stat -c '%d:%i' -- "${DATA}")"
+
+mkdir -p -- "${DOMAIN_LOG_DIR}/${PDY}/${cyc}/${region}"
 
 echo "======================================================"
 echo " WoFS v1.0 DOMAIN_SETUP - J-job"
@@ -48,18 +101,88 @@ echo "region         = ${region}"
 echo "CENTER_LAT     = ${CENTER_LAT}"
 echo "CENTER_LON     = ${CENTER_LON}"
 echo "WIDTH_KM       = ${WIDTH_KM}"
-echo "WORK_ROOT      = ${WORK_ROOT}"
+echo "DOMAIN_WORK_ROOT = ${DOMAIN_WORK_ROOT}"
+echo "DATA             = ${DATA}"
 echo "COMOUT_DOMAIN  = ${COMOUT_DOMAIN}"
 echo "WOFS_PYTHON    = ${WOFS_PYTHON}"
 echo "SENDCOM        = ${SENDCOM}"
+echo "KEEPDATA       = ${KEEPDATA}"
 echo "======================================================"
 
+# Execute the domain-specific processing.
 if "${SCRIPTWOfS}/exwofs_domain_setup.sh"; then
-    echo "[PASS] JWOFS_DOMAIN_SETUP completed successfully"
-    echo "CDATE=${CDATE} region=${region}"
+
+    echo "[PASS] DOMAIN_SETUP processing completed"
+
 else
+
     status=$?
+
     echo "[ERROR] DOMAIN_SETUP failed: rc=${status}" >&2
+    echo "[INFO] DATA retained: ${DATA}"
+
     exit "${status}"
+
 fi
+
+# Remove DATA only after successful processing and publication.
+if [[ "${SENDCOM}" == YES && "${KEEPDATA}" == NO ]]; then
+
+    # Confirm all required COM products match the generated files.
+    for name in         "${RADAR_CONFIG}"         "${DOMAIN_PLOT}"         "${RUNTIME_CONFIG}"
+    do
+
+        if [[ ! -s "${COMOUT_DOMAIN}/${name}" ]] ||
+           ! cmp -s -- "${DATA}/${name}" "${COMOUT_DOMAIN}/${name}"
+        then
+            echo "[ERROR] COM verification failed: ${name}" >&2
+            echo "[INFO] DATA retained: ${DATA}"
+            exit 1
+        fi
+
+    done
+
+    # Restrict cleanup to the directory created by this J-job.
+    if [[ "${DATA}" != "${CREATED_DATA}" ||
+          "$(dirname -- "${DATA}")" != "${DOMAIN_WORK_ROOT}" ||
+          "$(basename -- "${DATA}")" != job.* ||
+          ! -d "${DATA}" ||
+          -L "${DATA}" ]]; then
+
+        echo "[ERROR] Unsafe DATA cleanup path: ${DATA}" >&2
+        exit 1
+
+    fi
+
+    if [[ "$(realpath -e -- "${DATA}")" != "${CREATED_DATA}" ||
+          "$(stat -c '%d:%i' -- "${DATA}")" != "${CREATED_DATA_ID}" ]]; then
+
+        echo "[ERROR] DATA directory identity changed" >&2
+        exit 1
+
+    fi
+
+    # DOMAIN_SETUP generates only three products. Remove those
+    # explicitly rather than recursively deleting directories.
+    cd "${HOMEwofs}"
+
+    rm --         "${DATA}/${RADAR_CONFIG}"         "${DATA}/${DOMAIN_PLOT}"         "${DATA}/${RUNTIME_CONFIG}"
+
+    if ! rmdir -- "${DATA}"; then
+
+        echo "[ERROR] Unexpected files remain in DATA: ${DATA}" >&2
+        exit 1
+
+    fi
+
+    echo "[PASS] Temporary DATA removed: ${DATA}"
+
+else
+
+    echo "[INFO] Temporary DATA retained: ${DATA}"
+
+fi
+
+echo "[PASS] JWOFS_DOMAIN_SETUP completed successfully"
+echo "CDATE=${CDATE} region=${region}"
 

@@ -40,10 +40,10 @@ def main():
         "HOMEwofs", "DATAROOT", "PDY", "cyc",
         "CDATE", "event", "start_hr", "region",
         "CENTER_LAT", "CENTER_LON", "WIDTH_KM",
-        "WORK_ROOT", "COMROOT", "COMOUT",
+        "COMROOT", "COMOUT",
         "COMOUT_DOMAIN", "DOMAIN_LOG_DIR",
         "RADAR_CONFIG", "DOMAIN_PLOT",
-        "RUNTIME_CONFIG", "SENDCOM",
+        "RUNTIME_CONFIG",
     ):
         values[name] = required(name)
 
@@ -165,7 +165,7 @@ def main():
     if int(values["grdpts_ns"]) - 1 != int(values["NLATS"]):
         fail("Inconsistent north-south dimensions")
 
-    # Resolve domain-specific directories.
+    # Resolve persistent domain-specific COM directories.
     pattern = re.compile(
         r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}"
     )
@@ -186,6 +186,10 @@ def main():
         return result
 
     for name, value in cfg["domain_directories"].items():
+
+        if name in values:
+            fail(f"Duplicate directory variable: {name}")
+
         values[name] = expand(value)
 
     # Standard repository resource directories.
@@ -249,9 +253,12 @@ def main():
     for name, filename in cfg["gsi_fix_files"].items():
         lines.append(f"# {name}: {filename}")
 
-    # Atomic publication into WORK.
-    work = Path(values["WORK_ROOT"])
-    work.mkdir(parents=True, exist_ok=True)
+    # Write into temporary DATA without exporting DATA
+    # or WORK_ROOT into the persistent domain configuration.
+    work = Path(required("DATA"))
+
+    if not work.is_dir():
+        fail(f"Temporary DATA directory missing: {work}")
 
     output = work / values["RUNTIME_CONFIG"]
 

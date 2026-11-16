@@ -28,9 +28,37 @@ grid:
   center_lon: -97.16102
   width_km: 900
 
+
+# On-demand WoFS domains.
+# Enable one, two, or three domains per submission.
+domains:
+  - region: CSP
+    enabled: true
+    center_lat: 36.14885
+    center_lon: -97.16102
+    width_km: 900
+
+  - region: NGP
+    enabled: true
+    center_lat: 44.00000
+    center_lon: -100.00000
+    width_km: 900
+
+  - region: SE
+    enabled: true
+    center_lat: 33.00000
+    center_lon: -85.00000
+    width_km: 900
+
+# Shared WoFS Python runtime and offline Cartopy FIX data.
+python:
+  env: ${HOMEwofs}/python_env
+  cartopy_data_dir: ${HOMEwofs}/fix/cartopy
+
 paths:
   dataroot: /scratch3/NCEPDEV/stmp/Jianping.Huang
 
+  # Parent directory for DOMAIN_SETUP job-specific DATA.
   work_root: ${DATAROOT}/domain_setup/${PDY}/${cyc}/${region}
 
   comroot: ${DATAROOT}/com/wofs/v1.0
@@ -49,6 +77,9 @@ files:
 
 runtime:
   sendcom: true
+  # true: retain temporary DATA
+  # false: remove DATA after successful COM publication
+  keepdata: false
   modulefile: ursa_intel
   mpi_tasks: 1
   cpus_per_task: 1
@@ -199,21 +230,25 @@ gsi_fix_files:
   SATBIASINE: satbias_in.enkf.start.ABI
   SATBIASPC: satbias_pc.enkf.start.ABI
 
-# All writable runtime directories are isolated by domain.
+# Persistent domain products and downstream COM paths.
+# Individual tasks create and manage their own temporary DATA.
 domain_directories:
-  RUNDIR: ${WORK_ROOT}
-  FCST_DIR: ${RUNDIR}/FCST
-  WRF_RUN: ${RUNDIR}/WRF_RUN
-  GSI_RUN: ${RUNDIR}/GSI_RUN
-  ENKFDIR: ${RUNDIR}/enkfdir
-  RESULTSDIR: ${RUNDIR}/results
-  SEMA4: ${RUNDIR}/flags
-
-  OBSDIR: ${RUNDIR}/OBSGEN
-  RADAR_OBS_DIR: ${OBSDIR}/RADAR
-  SAT_OBS_DIR: ${OBSDIR}/SATELLITE
-
-  INPUTDIR: ${RUNDIR}/WRFINPUTS
   SHARED_INPUTDIR: ${COMOUT}/INPUT
+
+  DOMAIN_COM_DIR: ${COMOUT_DOMAIN}
+
+  WPS_COM_DIR: ${COMOUT_DOMAIN}/WPS
+  WPS_IC_COM_DIR: ${WPS_COM_DIR}/IC
+  WPS_BC_COM_DIR: ${WPS_COM_DIR}/BC
+
+  OBS_COM_DIR: ${COMOUT_DOMAIN}/OBS
+  RADAR_OBS_COM_DIR: ${OBS_COM_DIR}/RADAR
+  SAT_OBS_COM_DIR: ${OBS_COM_DIR}/SATELLITE
+
+  DA_COM_DIR: ${COMOUT_DOMAIN}/DA
+
+  FCST_COM_DIR: ${COMOUT_DOMAIN}/FCST
+  POST_COM_DIR: ${COMOUT_DOMAIN}/POST
+  PLOT_COM_DIR: ${COMOUT_DOMAIN}/PLOT
 
   DOMAIN_RUN_LOG_DIR: ${DOMAIN_LOG_DIR}/${PDY}/${cyc}/${region}

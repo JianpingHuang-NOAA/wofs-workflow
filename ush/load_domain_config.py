@@ -225,7 +225,9 @@ def main():
         if Path(values[name]) != expected:
             fail(f"Unexpected {name}: {values[name]}")
 
-    values["DATA"] = values["WORK_ROOT"]
+    # The J-job creates a unique DATA directory under this
+    # parent after acquiring the domain-level lock.
+    values["DOMAIN_WORK_ROOT"] = values["WORK_ROOT"]
 
     # Domain-specific filenames.
     file_exports = {
@@ -250,6 +252,11 @@ def main():
     values["SENDCOM"] = yes_no(
         override("SENDCOM", runtime["sendcom"]),
         "SENDCOM"
+    )
+
+    values["KEEPDATA"] = yes_no(
+        override("KEEPDATA", runtime["keepdata"]),
+        "KEEPDATA"
     )
 
     values["DOMAIN_MODULEFILE"] = str(
