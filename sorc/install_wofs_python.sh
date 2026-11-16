@@ -3,27 +3,40 @@
 # Install the WoFS v1.0 Python runtime on NOAA Ursa.
 #
 # Usage:
-#   install_wofs_python.sh /absolute/path/to/new/venv
+#   install_wofs_python.sh
+#   install_wofs_python.sh /absolute/path/to/venv
+#
+# Default installation directory:
+#   <WoFS repository>/python_env
+#
+# An existing environment is validated and never overwritten.
 #
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
-# Require an explicit installation directory.
-if [[ "$#" -ne 1 || "$1" != /* || "$1" == / ]]; then
-    echo "Usage: $0 /absolute/path/to/new/venv" >&2
+# Accept an optional absolute installation directory.
+if [[ "$#" -gt 1 ]]; then
+    echo "Usage: $0 [/absolute/path/to/venv]" >&2
     exit 1
 fi
 
-if [[ -e "$1" || -L "$1" ]]; then
-    echo "[ERROR] Installation path already exists: $1" >&2
+TARGET="${1:-$ROOT/python_env}"
+
+if [[ "$TARGET" != /* || "$TARGET" == / ]]; then
+    echo "[ERROR] Invalid installation path: $TARGET" >&2
     exit 1
 fi
 
-VENV="$(realpath -m -- "$1")"
+if [[ -L "$TARGET" ]]; then
+    echo "[ERROR] Installation path is a symbolic link: $TARGET" >&2
+    exit 1
+fi
 
-if [[ "$VENV" == / || -e "$VENV" || -L "$VENV" ]]; then
+VENV="$(realpath -m -- "$TARGET")"
+
+if [[ "$VENV" == / ]]; then
     echo "[ERROR] Invalid installation path: $VENV" >&2
     exit 1
 fi
@@ -117,6 +130,32 @@ for name, dist, key in packages:
     print(f"[PASS] {name}: {actual}")
     print(f"       {location}")
 PYTHON
+
+# Validate an existing environment without modifying it.
+if [[ -e "$VENV" || -L "$VENV" ]]; then
+
+    echo
+    echo "[INFO] WoFS Python environment already exists:"
+    echo "       $VENV"
+
+    if [[ ! -d "$VENV" || ! -f "$VENV/pyvenv.cfg" ||
+          ! -x "$VENV/bin/python3" ]]; then
+        echo "[ERROR] Existing path is not a valid Python venv" >&2
+        echo "[ERROR] Existing path has not been modified" >&2
+        exit 1
+    fi
+
+    if bash "$ROOT/tests/check_wofs_python.sh" "$VENV/bin/python3"; then
+        echo "[PASS] Existing WoFS Python environment is valid"
+        echo "[INFO] No installation required"
+        exit 0
+    else
+        echo "[ERROR] Existing Python environment failed validation" >&2
+        echo "[ERROR] Existing environment has not been modified" >&2
+        echo "[INFO] Install into a new directory if necessary" >&2
+        exit 1
+    fi
+fi
 
 echo
 echo "===== Create WoFS virtual environment ====="
