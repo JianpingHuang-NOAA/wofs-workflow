@@ -1,0 +1,57 @@
+# ============================================================================
+# WoFS v1.0 DOMAIN_SETUP configuration
+#
+# Supports independent, on-demand WoFS domain launches.
+# Up to three domains may run simultaneously.
+#
+# Launch parameters may be overridden through environment variables.
+#
+# Runtime variables:
+#   HOMEwofs       Repository root
+#   DATAROOT       Working-data root
+#   COMROOT        COM data root
+#   PDY            Event date (YYYYMMDD)
+#   cyc            Starting UTC hour (HH)
+#   region         Domain identifier
+#   CENTER_LAT     Domain center latitude
+#   CENTER_LON     Domain center longitude
+#   WIDTH_KM       Domain width in kilometers
+# ============================================================================
+
+workflow:
+  event: "20261102"
+  start_hour: "15"
+  region: CSP
+
+grid:
+  center_lat: 36.14885
+  center_lon: -97.16102
+  width_km: 900
+
+paths:
+  dataroot: /scratch3/NCEPDEV/stmp/Jianping.Huang
+
+  work_root: ${DATAROOT}/domain_setup/${PDY}/${cyc}/${region}
+
+  comroot: ${DATAROOT}/com/wofs/v1.0
+  comout: ${COMROOT}/wofs.${PDY}/${cyc}
+  comout_domain: ${COMOUT}/${region}
+
+  station_dir: ${HOMEwofs}/parm/domain_setup
+  radar_script: ${HOMEwofs}/ush/WoFS_grid_radars.py
+
+  log_dir: ${DATAROOT}/logs/wofsv1.0/domain_setup
+
+files:
+  radar_config: radars_${PDY}_${region}.csh
+  domain_plot: WOFS_domain_${PDY}_${region}.png
+  runtime_config: realtime.cfg.${PDY}.${region}
+
+runtime:
+  sendcom: true
+  modulefile: ursa_intel
+  mpi_tasks: 1
+  cpus_per_task: 1
+  partition: u1-compute
+  qos: debug
+  walltime: "00:10:00"
