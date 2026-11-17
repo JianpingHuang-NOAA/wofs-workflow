@@ -1,0 +1,3 @@
+# WoFS domain-specific WPS runtime configuration
+
+export wps_modulefile=ursa_wps

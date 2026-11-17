@@ -1,0 +1,13 @@
+&share
+ wrf_core = 'ARW',
+ max_dom = 1,
+ start_date = '@START_DATE@',
+ end_date = '@END_DATE@',
+ interval_seconds = @INTERVAL_SECONDS@,
+ io_form_geogrid = 2,
+/
+
+&ungrib
+ out_format = '@OUT_FORMAT@',
+ prefix = '@PREFIX@',
+/

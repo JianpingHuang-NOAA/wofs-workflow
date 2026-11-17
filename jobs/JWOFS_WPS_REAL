@@ -1,0 +1,83 @@
+#!/bin/bash
+
+set -euo pipefail
+
+export TZ=UTC
+
+: "${HOMEwofs:?HOMEwofs is required}"
+: "${DATAROOT:?DATAROOT is required}"
+: "${CDATE:?CDATE is required}"
+: "${region:?region is required}"
+: "${WPS_STAGE:?WPS_STAGE is required}"
+
+export MEMBER="${MEMBER:-${SLURM_ARRAY_TASK_ID:-}}"
+
+: "${MEMBER:?MEMBER is required}"
+
+[[ "$CDATE" =~ ^[0-9]{10}$ ]] || exit 1
+[[ "$MEMBER" =~ ^[0-9]+$ ]] || exit 1
+[[ "$region" =~ ^[A-Za-z0-9_-]+$ ]] || exit 1
+
+case "$WPS_STAGE" in
+    BC|IC) ;;
+    *)
+        echo "[ERROR] Invalid WPS_STAGE: $WPS_STAGE"
+        exit 1
+        ;;
+esac
+
+export PDY="${CDATE:0:8}"
+export cyc="${CDATE:8:2}"
+
+export MEM2="$(printf '%02d' "$((10#$MEMBER))")"
+
+export EXECwofs="$HOMEwofs/exec"
+export FIXwofs="$HOMEwofs/fix"
+export PARMwofs="$HOMEwofs/parm"
+export USHwofs="$HOMEwofs/ush"
+export SCRIPTwofs="$HOMEwofs/scripts"
+
+export COMROOT="${COMROOT:-$DATAROOT/com/wofs/v1.0}"
+
+export COMOUT="$COMROOT/wofs.${PDY}/${cyc}"
+
+export COMOUT_DOMAIN="$COMOUT/$region"
+
+export REAL_COM_DIR="$COMOUT_DOMAIN/REAL"
+
+export COMOUT_REAL="$REAL_COM_DIR/$WPS_STAGE/mem${MEM2}"
+
+export WPS_CONFIG="${WPS_CONFIG:-$PARMwofs/wps/config.yaml}"
+
+export SENDCOM="${SENDCOM:-YES}"
+export KEEPDATA="${KEEPDATA:-NO}"
+
+WORK_ROOT="$DATAROOT/wps/$CDATE/$region/REAL/$WPS_STAGE"
+
+mkdir -p "$WORK_ROOT"
+
+export DATA="$(mktemp -d \
+    "$WORK_ROOT/mem${MEM2}.XXXXXXXX")"
+
+echo "===== WoFS domain-specific REAL ====="
+
+echo "CDATE       : $CDATE"
+echo "Region      : $region"
+echo "Stage       : $WPS_STAGE"
+echo "Member      : $MEM2"
+echo "DATA        : $DATA"
+echo "COMOUT      : $COMOUT_REAL"
+
+cd "$DATA"
+
+"$SCRIPTwofs/exwofs_wps_real.sh"
+
+if [[ "$KEEPDATA" == "NO" ]]; then
+
+    cd "$WORK_ROOT"
+
+    rm -rf -- "$DATA"
+
+fi
+
+echo "[SUCCESS] REAL_${WPS_STAGE} $region mem${MEM2}"
