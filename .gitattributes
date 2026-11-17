@@ -1,2 +1,8 @@
 sorc/build_configs/ursa/configure.wps -whitespace
 sorc/build_configs/ursa/module_list -whitespace
+
+# Preserve original WoFS WPS configuration tables.
+/parm/wps/tables/GEOGRID.TBL whitespace=-blank-at-eol
+/parm/wps/tables/METGRID.TBL whitespace=-blank-at-eol
+/parm/wps/tables/Vtable.WoFS.BCs whitespace=-blank-at-eol
+/parm/wps/tables/Vtable.WoFS.ICs whitespace=-blank-at-eol

@@ -157,6 +157,85 @@ install_component \
 
 echo "[PASS] WPS symbolic links verified"
 
+# Install WoFS-specific WPS configuration tables.
+install_wofs_wps_tables() {
+
+    local src="$HOMEwofs/parm/wps/tables"
+    local dest="$FIX_ROOT/WPS/WOFS"
+    local tmp
+    local file
+
+    local tables=(
+        GEOGRID.TBL
+        METGRID.TBL
+        Vtable.WoFS.BCs
+        Vtable.WoFS.ICs
+    )
+
+    echo
+    echo "===== WoFS WPS configuration tables ====="
+
+    for file in "${tables[@]}"; do
+
+        [[ -s "$src/$file" ]] ||
+            die "Missing WPS configuration table: $src/$file"
+
+    done
+
+    [[ ! -L "$dest" ]] ||
+        die "WPS table directory must not be a symbolic link"
+
+    if [[ ! -e "$dest" ]]; then
+
+        tmp="$(mktemp -d "$FIX_ROOT/WPS/.WOFS.XXXXXXXX")"
+
+        trap 'rm -rf -- "$tmp"' EXIT
+
+        for file in "${tables[@]}"; do
+
+            cp -p "$src/$file" "$tmp/$file"
+
+            cmp -s "$src/$file" "$tmp/$file" ||
+                die "WPS table installation failed: $file"
+
+        done
+
+        chmod 2755 "$tmp"
+
+        mv -nT -- "$tmp" "$dest"
+
+        [[ ! -e "$tmp" ]] ||
+            die "WoFS WPS table installation failed"
+
+        trap - EXIT
+
+    else
+
+        echo "[INFO] Existing WoFS WPS tables; verifying"
+
+    fi
+
+    [[ -d "$dest" ]] ||
+        die "Invalid WPS table directory: $dest"
+
+    for file in "${tables[@]}"; do
+
+        [[ -f "$dest/$file" && ! -L "$dest/$file" ]] ||
+            die "Invalid installed WPS table: $dest/$file"
+
+        cmp -s "$src/$file" "$dest/$file" ||
+            die "WPS table differs from repository: $file"
+
+        echo "[PASS] $file"
+
+    done
+
+    echo "[PASS] WoFS WPS configuration tables verified"
+}
+
+install_wofs_wps_tables
+
+
 # 3. WRF FIX.
 install_component \
     WRF \

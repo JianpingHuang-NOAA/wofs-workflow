@@ -1,0 +1,89 @@
+# WoFS domain-specific WPS configuration
+
+geogrid:
+  executable: geogrid.exe
+
+  geog_data_path: /scratch4/NCEPDEV/stmp/Jianping.Huang/geog_cb
+  table_dir: fix/WPS/WOFS
+
+  wrf_core: ARW
+  map_proj: lambert
+
+  dx: 3000
+  dy: 3000
+
+  truelat1: 30.0
+  truelat2: 60.0
+
+  geog_data_res: modis_lakes+15s+modis_fpar+modis_lai+30s_with_lakes
+
+  interval_seconds: 3600
+  io_form_geogrid: 2
+  wrf_geog_tile_size: 100
+
+  mpi_tasks: 1
+
+# Shared UNGRIB processing
+ungrib:
+  executable: ungrib.exe
+  table_dir: fix/WPS/WOFS
+  prefix: HRRRE
+  out_format: WPS
+  interval_seconds: 3600
+
+  bc:
+    ens_size: 18
+    vtable: Vtable.WoFS.BCs
+    input_pattern: wrfnat_pert_hrrr_mem{mem4}_*.grib2
+    start_key: sdate_bc
+    end_key: edate_bc
+
+  ic:
+    ens_size: 36
+    vtable: Vtable.WoFS.ICs
+    input_pattern: wrfnat_hrrre_newse_mem{mem4}_01.grib2
+    start_key: sdate_ic
+    end_key: edate_ic
+
+# Domain-specific METGRID processing
+metgrid:
+  executable: metgrid.exe
+  table_dir: fix/WPS/WOFS
+  io_form_metgrid: 2
+
+  bc:
+    mpi_tasks: 1
+    memory: 128G
+    walltime: "00:30:00"
+    partition: u1-compute
+    qos: debug
+
+  ic:
+    mpi_tasks: 12
+    memory: 60G
+    walltime: "00:30:00"
+    partition: u1-compute
+    qos: debug
+
+# Domain-specific WRF REAL processing
+real:
+  executable: real.exe
+  template_dir: parm/wrf/namelists.WOFS
+  static_dir: fix/WRF/run
+
+  bc:
+    mpi_tasks: 1
+    memory: 24G
+    walltime: "00:30:00"
+    partition: u1-compute
+    qos: debug
+    output: wrfbdy_d01
+    p_top_requested: 2000
+
+  ic:
+    mpi_tasks: 1
+    memory: 30G
+    walltime: "00:30:00"
+    partition: u1-compute
+    qos: debug
+    output: wrfinput_d01_ic
