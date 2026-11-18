@@ -266,14 +266,14 @@ INPUT contains shared IC_PREP and BC_PREP products.
 
 Each enabled domain receives three DOMAIN_SETUP products:
 
-    radars_${PDY}_${region}.csh
+    radars_${PDY}_${region}.sh
     realtime.cfg.${PDY}.${region}
     WOFS_domain_${PDY}_${region}.png
 
 For example:
 
     wofs.20261102/15/CSP/
-      radars_20261102_CSP.csh
+      radars_20261102_CSP.sh
       realtime.cfg.20261102.CSP
       WOFS_domain_20261102_CSP.png
 
@@ -369,7 +369,7 @@ with KEEPDATA=NO.
 A separate CSP execution with KEEPDATA=YES retained:
 
     job.uDOkYg34/
-      radars_20261102_CSP.csh
+      radars_20261102_CSP.sh
       realtime.cfg.20261102.CSP
       WOFS_domain_20261102_CSP.png
 

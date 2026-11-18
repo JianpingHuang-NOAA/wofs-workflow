@@ -237,7 +237,7 @@ def main():
     }
 
     expected_files = {
-        "RADAR_CONFIG": f"radars_{pdy}_{region}.csh",
+        "RADAR_CONFIG": f"radars_{pdy}_{region}.sh",
         "DOMAIN_PLOT": f"WOFS_domain_{pdy}_{region}.png",
         "RUNTIME_CONFIG": f"realtime.cfg.{pdy}.{region}",
     }

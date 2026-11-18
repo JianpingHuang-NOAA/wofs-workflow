@@ -8,7 +8,7 @@ from pathlib import Path
 import yaml
 from netCDF4 import Dataset
 
-from load_wps_ungrib_config import read_domain_config
+from read_domain_runtime_config import read_domain_config
 
 
 def main():
