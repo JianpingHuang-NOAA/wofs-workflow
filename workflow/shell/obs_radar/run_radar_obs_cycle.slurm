@@ -162,6 +162,17 @@ def main():
             fields.append(field)
             return field
 
+        original_loader = mrms.getRadarProducts
+        loaded_tilt_counts = []
+
+        def track_radar_products(*args, **kwargs):
+            count = 0
+            for product in original_loader(*args, **kwargs):
+                count += 1
+                yield product
+            loaded_tilt_counts.append(count)
+
+        mrms.getRadarProducts = track_radar_products
         mrms.dbz_masking = capture_dbz
         try:
             run_vr_for_radar_time(
@@ -170,6 +181,20 @@ def main():
             )
         finally:
             mrms.dbz_masking = original_masking
+            mrms.getRadarProducts = original_loader
+
+        if not fields and loaded_tilt_counts == [0]:
+            pending = work / "publish"
+            pending.mkdir()
+            (pending / "station_complete.json").write_text(json.dumps({
+                "cycle": cycle, "station": station,
+                "status": "no_eligible_input",
+                "counts": {"dbzobs": 0, "vrobs": 0},
+            }) + "\n")
+            pending.rename(stage)
+            print(f"SKIP: {station} {cycle}: no eligible radar input")
+            return
+
         if len(fields) != 1:
             raise RuntimeError(f"Expected one reflectivity volume, got {len(fields)}")
 

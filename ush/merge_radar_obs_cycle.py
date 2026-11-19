@@ -134,12 +134,17 @@ def main():
         pending = Path(temp) / "publish"
         pending.mkdir()
         manifests = {}
+        no_eligible_input = []
         for station in args.stations:
             station_dir = args.station_root / station / args.cycle
             summary = json.loads((station_dir / "station_complete.json").read_text())
             if (summary.get("station"), summary.get("cycle")) != (station, args.cycle):
                 raise ValueError(f"Wrong station or cycle in {station_dir}")
             manifests[station] = summary["counts"]
+            if summary.get("status") == "no_eligible_input":
+                if manifests[station] != {"dbzobs": 0, "vrobs": 0}:
+                    raise ValueError(f"{station}: no eligible input with nonzero counts")
+                no_eligible_input.append(station)
 
         for kind in ("dbzobs", "vrobs"):
             name = f"{hhmm}-{kind}.nc"
@@ -164,6 +169,7 @@ def main():
 
         (pending / "cycle_complete.json").write_text(json.dumps({
             "cycle": args.cycle, "stations": args.stations, "counts": counts,
+            "no_eligible_input": no_eligible_input,
         }) + "\n")
         if destination.exists() or destination.is_symlink():
             raise FileExistsError(f"Cycle already exists: {destination}")
