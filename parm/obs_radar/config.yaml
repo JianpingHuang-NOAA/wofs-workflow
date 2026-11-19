@@ -1,0 +1,16 @@
+# Copy this file for each case. Paths must be absolute.
+cdate: "2026110215"
+domain: CSP
+start: "202611021500"
+end: "202611021530"
+interval_minutes: 15
+run_root: /path/to/new/radar-run
+nexrad_root: /path/to/archived/NEXRAD
+stations: [KAMA, KDDC, KDYX, KEAX, KFDR, KFWS, KGLD, KICT, KINX, KLBB, KLZK, KMAF, KSHV, KSGF, KSJT, KSRX, KTLX, KTWX, KUEX, KVNX]
+# Optional argv list for downloading into nexrad_root. [] reuses archived data.
+download_command: []
+# Submit WDSS-II and return a JSON receipt as described in the runbook.
+wdssii_command: [/path/to/wofs-workflow-radar/ush/submit_wdssii_with_receipt.sh, /path/to/submit_wdssii_array.sh]
+# Reuse the Ursa-validated launcher and its case.conf runtime settings.
+obs_launcher: /path/to/submit_obs_cycles.sh
+obs_base_config: /path/to/validated/case.conf

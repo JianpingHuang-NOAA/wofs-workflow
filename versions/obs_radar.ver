@@ -12,3 +12,10 @@ export wdssii_ver=26-4
 export wdssii_archive=WDSS2_08_v26-4.tgz
 
 export wdssii_ssl_ver=1.1
+
+# Shared runtime defaults and OBS_RADAR component settings.
+_radar_versions="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+source "$_radar_versions/run.ver"
+unset _radar_versions
+export wofs_component=obs_radar
+export wofs_modulefile=ursa_obs_radar
