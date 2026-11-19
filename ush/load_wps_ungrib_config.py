@@ -8,17 +8,7 @@ from pathlib import Path
 
 import yaml
 
-
-def read_domain_config(path):
-    cfg = {}
-
-    for line in path.read_text().splitlines():
-        fields = line.strip().split(None, 2)
-
-        if len(fields) == 3 and fields[0] == "setenv":
-            cfg[fields[1]] = fields[2].strip("'\"")
-
-    return cfg
+from read_domain_runtime_config import read_domain_config
 
 
 def main():

@@ -219,9 +219,9 @@ def main():
             Path(values["DOMAIN_RUN_LOG_DIR"]) / filename
         )
 
-    # Generate C-shell-compatible configuration.
+    # Generate Bash-compatible configuration.
     lines = [
-        "#!/bin/csh",
+        "#!/bin/bash",
         "# WoFS v1.0 domain runtime configuration",
         f"# CDATE: {values['CDATE']}",
         f"# Region: {values['region']}",
@@ -236,13 +236,13 @@ def main():
         ):
             fail(f"Invalid variable name: {name}")
 
-        # Restrict values to safe C-shell scalar characters.
+        # Restrict values to safe Bash scalar characters.
         if not re.fullmatch(
             r"[A-Za-z0-9_./:+-]+", str(value)
         ):
-            fail(f"Unsafe C-shell value: {name}={value}")
+            fail(f"Unsafe Bash value: {name}={value}")
 
-        lines.append(f"setenv {name} {value}")
+        lines.append(f"export {name}='{value}'")
 
     # Resource paths will be resolved in Phase D.
     lines.extend([

@@ -71,7 +71,7 @@ paths:
   log_dir: ${DATAROOT}/logs/wofsv1.0/domain_setup
 
 files:
-  radar_config: radars_${PDY}_${region}.csh
+  radar_config: radars_${PDY}_${region}.sh
   domain_plot: WOFS_domain_${PDY}_${region}.png
   runtime_config: realtime.cfg.${PDY}.${region}
 
