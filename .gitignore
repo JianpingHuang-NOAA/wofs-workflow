@@ -56,3 +56,6 @@ logs/
 # Python-generated cache files
 __pycache__/
 *.pyc
+
+# RADAR external source
+/sorc/RADAR/

@@ -6,10 +6,11 @@ This operation is non-destructive and safe to rerun.
 """
 
 import os
-import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+
+from read_domain_runtime_config import read_domain_config
 
 
 def fail(message):
@@ -23,40 +24,13 @@ def required_env(name):
     return value
 
 
-def read_config(path):
-    values = {}
-
-    if not path.is_file():
-        fail(f"Missing runtime configuration: {path}")
-
-    for line in path.read_text().splitlines():
-
-        fields = line.strip().split(maxsplit=2)
-
-        if len(fields) == 3 and fields[0] == "setenv":
-
-            name, value = fields[1:]
-
-            if name in values:
-                fail(f"Duplicate variable: {name}")
-
-            if not re.fullmatch(
-                r"[A-Za-z0-9_./:+-]+", value
-            ):
-                fail(f"Invalid configuration value: {name}")
-
-            values[name] = value
-
-    return values
-
-
 def main():
 
     work = Path(required_env("WORK_ROOT")).resolve()
 
     config = work / required_env("RUNTIME_CONFIG")
 
-    cfg = read_config(config)
+    cfg = read_domain_config(config)
 
     def get(name):
         if name not in cfg:

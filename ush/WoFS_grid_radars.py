@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 import re
+from shlex import quote
 
 # HRRR Grid description
 
@@ -493,40 +494,33 @@ if options.hwtdd:
 
 event = options.event
 region = options.region
-fout = output_dir / f"radars_{event}_{region}.csh" 
-
-# Write out csh file.....
-
-outfile = open(fout, 'w')
-outfile.write("#!/bin/csh\n#\n")
-
+fout = output_dir / f"radars_{event}_{region}.sh"
 nradars = len(radar_name)
+radar_arrays = {
+    "rad_lon": radar_lon,
+    "rad_lat": radar_lat,
+    "rad_alt": [round(altitude, 7) for altitude in radar_alt],
+    "rad_name": radar_name,
+}
+radar_settings = {
+    "num_rad": str(nradars),
+    "cen_lat": f"{N.rad2deg(lat_c):f}",
+    "cen_lon": f"{N.rad2deg(lon_c):f}",
+    "lat_ll": f"{glat[0]:f}",
+    "lat_ur": f"{glat[1]:f}",
+    "lon_ll": f"{glon[0]:f}",
+    "lon_ur": f"{glon[2]:f}",
+    "region": region,
+    "start_hr": options.start_hour,
+}
 
-outfile.write("setenv num_rad %d\n" % nradars)
-
-outfile.write("set rad_lon = ( %s )\n" % (' '.join([str(x) for x in radar_lon])))
-
-outfile.write("set rad_lat = ( %s )\n" % (' '.join([str(x) for x in radar_lat])))
-
-outfile.write("set rad_alt = ( %s )\n" % (' '.join([str(round(x,7)) for x in radar_alt])))
-
-outfile.write("set rad_name = ( %s )\n" % (' '.join([x for x in radar_name])))
-
-outfile.write("setenv cen_lat %f\n" % N.rad2deg(lat_c))
-
-outfile.write("setenv cen_lon %f\n" % N.rad2deg(lon_c))
-
-outfile.write("setenv lat_ll %f\n" % glat[0])
-outfile.write("setenv lat_ur %f\n" % glat[1])
-outfile.write("setenv lon_ll %f\n" % glon[0])
-outfile.write("setenv lon_ur %f\n" % glon[2])
-
-outfile.write("setenv region %s\n" % region)
-outfile.write("setenv start_hr %s\n" % options.start_hour)
-
-#outfile.write("setenv year %s\n" % date.year)
-
-outfile.close()
+with fout.open("w", encoding="utf-8") as outfile:
+    outfile.write("#!/bin/bash\n")
+    for name, values in radar_arrays.items():
+        elements = " ".join(quote(str(value)) for value in values)
+        outfile.write(f"{name}=({elements})\n")
+    for name, value in radar_settings.items():
+        outfile.write(f"export {name}={quote(str(value))}\n")
 
 print("\n  Found %d radars within domain\n" % nradars)
 
