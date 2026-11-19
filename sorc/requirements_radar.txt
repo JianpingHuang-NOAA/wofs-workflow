@@ -1,0 +1,26 @@
+# WoFS v1.0 radar observation preprocessing dependencies.
+# Validated dependency installation on NOAA Ursa.
+# Python 3.11.12 / NumPy 2.2.5
+
+xarray==2026.9.0
+dask==2026.8.0
+arm_pyart==2.3.0
+cmweather==0.3.2
+metpy==1.7.1
+basemap==2.0.0
+basemap-data-hires==2.0.0
+pygeodesy==24.9.29
+beautifulsoup4==4.13.4
+future==1.0.0
+pint==0.25.3
+
+# AWS data access
+s3fs==2026.9.0
+fsspec==2026.9.0
+boto3==1.43.117
+botocore==1.43.117
+aiobotocore==3.10.0
+
+# Fortran extension build dependencies
+meson==1.12.1
+ninja==1.13.2

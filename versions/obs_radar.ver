@@ -1,0 +1,21 @@
+#!/bin/bash
+#=======================================================================
+# WoFS v1.0 radar observation preprocessing software versions.
+#=======================================================================
+
+export radar_python_ver=3.11.12
+export radar_numpy_ver=2.2.5
+export radar_pyart_ver=2.3.0
+export radar_pygrib_ver=2.1.8
+
+export wdssii_ver=26-4
+export wdssii_archive=WDSS2_08_v26-4.tgz
+
+export wdssii_ssl_ver=1.1
+
+# Shared runtime defaults and OBS_RADAR component settings.
+_radar_versions="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+source "$_radar_versions/run.ver"
+unset _radar_versions
+export wofs_component=obs_radar
+export wofs_modulefile=ursa_obs_radar
