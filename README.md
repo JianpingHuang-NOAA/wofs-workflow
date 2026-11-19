@@ -16,8 +16,8 @@ NOAA RDHPCS Ursa
 1. IC_PREP - Initial-condition preparation
 2. BC_PREP - Boundary-condition preparation
 3. DOMAIN_SETUP - Create a radar site list file, set up domain(s)
-4. OBS-PREP - Radar (DBZ & VR) and satellite (CWP) preparation for DA
-5. WPS - WRF Preprocessing System
+4. WPS - WRF Preprocessing System
+5. OBS-PREP - Radar (DBZ & VR) and satellite (CWP) preparation for DA
 6. GSI/EnKF - Data assimilation
 7. FCST - WRF forecast
 8. POST - Postprocessing
