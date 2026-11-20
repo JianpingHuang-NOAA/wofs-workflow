@@ -115,7 +115,7 @@ def read_radar_location_file2(_radar_file):
 
     f = open(_radar_file, 'r')
 
-    header1 = f.readline()
+    #header1 = f.readline()
 
     radar_locations_dict = {}
 
