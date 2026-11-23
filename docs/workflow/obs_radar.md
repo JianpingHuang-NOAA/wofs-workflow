@@ -1,88 +1,50 @@
-# OBS_RADAR workflow
+# OBS_RADAR scheduler tasks
 
-The three Slurm wrappers in `workflow/shell/obs_radar` call their corresponding
-`jobs/JWOFS_RADAR_*` and `scripts/exwofs_radar_*.sh` entry points. The wrappers
-use the radar version file and the Ursa radar module to load the YAML runtime.
-Install radar software using `sorc/build_obs_radar.sh --all`. That installer
-manages the RADAR external, compiled Python extensions and `exec/WDSSII`.
-The controller uses the tested observation interpreter and source specified
-in the observation base configuration.
+The scheduler submits the tasks and owns their dependencies. A submitted
+wrapper calls its J-job, execution script and Python utility. Each task
+finishes its assigned work synchronously. The production chain uses no
+manual submit drivers or submission receipts.
 
-1. Copy `parm/obs_radar/config.yaml` and set absolute case paths. Choose a new
-   run root whose parent already exists. The station list must match the
-   list passed to the WDSS-II launcher.
-2. For the CSP retrospective regression, leave `download_command: []` and
-   point `nexrad_root` at the archived `YYYYMMDD/STATION/*V06` event layout.
-   A configured downloader receives `NEXRAD_ROOT`, `CDATE`, `DOMAIN`,
-   `RADAR_STATIONS`, `RADAR_START` and `RADAR_END`. Its exit status must
-   reflect download success. The archive preflight checks for at least one
-   nonempty Level II scan per station. The downloader or archive inventory
-   must establish coverage for the requested schedule.
-3. Install the Ursa-validated WDSS-II launcher and its worker scripts.
-   Its submission adapter receives the same environment and writes one JSON
-   object to stdout after submitting both the site array and dependent
-   staging job. Send diagnostics to stderr. The adapter must report the
-   actual staging job ID and absolute staged directory for this submission.
+| Wrapper in workflow/shell/obs_radar | Arguments | Work |
+|---|---|---|
+| jswofs_radar_domains.sh | OUTPUT_DIR SHARED_YAML | Generate one task config per DOMAIN_SETUP domain |
+| jswofs_radar_download.sh | CASE_YAML | Run the site acquisition command if configured, then check archives |
+| jswofs_radar_wdssii.sh | CASE_YAML STATION | Decode and quality-control the configured station window |
+| jswofs_radar_stage.sh | CASE_YAML | Stage all stations after the WDSS-II tasks succeed |
+| jswofs_radar_processing.sh | CASE_YAML YYYYMMDDHHMM STATION | Generate the station VR file |
+| jswofs_radar_merge.sh | CASE_YAML YYYYMMDDHHMM | Combine station VR and generate mosaic MRMS DBZ |
+| jswofs_radar_publish.sh | CASE_YAML | After all merges succeed, publish that domain to COM |
 
-   ```json
-   {"stage_job_id": 12345, "cloud_root": "/absolute/wdssii/run/CLOUD_OBS"}
-   ```
+Set HOMEwofs to the checkout root. WDSS-II uses ush/load_wdssii.sh, with the
+default installation under exec/WDSSII. Set radar_python, radar_source,
+radar_app_config and wdssii_worker to verified site inputs. The Level II worker
+must support the five positional arguments from the legacy runwdssii.py
+and complete synchronously under the assigned task. Its own configuration
+and any runtime data must be available on the execution host. Inspect legacy
+worker-internal absolute paths before using the worker operationally.
 
-4. Set `obs_launcher` to the tested `submit_obs_cycles.sh` and
-   `obs_base_config` to the validated WDSS-II case configuration. It supplies
-   the domain file, gridding settings, tested Python and concurrency.
-5. From the worktree, run
+For the 2026110215 retrospective, add cdate "2026110215", start "202611021500",
+end "202611021530", and a fresh absolute run_root to a copy of
+parm/obs_radar/config.yaml in the cycle COM directory. Run the domain
+preparation wrapper with a fresh OUTPUT_DIR. Use one generated case YAML
+per domain. Its stations and geometry come from DOMAIN_SETUP. Schedule one
+merge per time, with dependencies on all station-time tasks for that time.
+The same-day WDSS-II window with 15 minutes of padding is 14:45–15:45 UTC.
+Use local archived inputs. The MRMS feed is a dated directory template with
+a literal {} replaced by the UTC date. Use the validated radar application
+INI with its MRMS and RASS settings and the installed GRIB2-capable reader.
+The archive check verifies the presence of GRIB2 data per date. The science
+worker must produce the requested cycle before the merge can publish it.
 
-   ```bash
-   bash workflow/shell/obs_radar/submit_radar.sh /absolute/case.yaml /absolute/run_root
-   ```
+Products are written to run_root/processing/obs/CYCLE. Each successful
+cycle has HHMM-vrobs.nc, HHMM-dbzobs.nc and cycle_complete.json.
+The publication task needs publish_root and refuses to overwrite an
+existing domain OBS_RADAR directory.
 
-   The controller waits for archive preparation and WDSS-II submission,
-   then schedules observation submission after successful WDSS-II staging.
-   The observation launcher submits the station and merge arrays.
-6. Check the station and merge IDs in `processing/jobs.tsv`. Final cycle
-   manifests and NetCDF products are under `processing/obs/<cycle>/`.
-   For the CSP regression, compare DBZ and VR counts at 15:00, 15:15, and
-   15:30 UTC with 3218/2795, 3500/3226, and 3101/2841 respectively.
-
-Use the tested observation Slurm launcher from the Ursa worktree for
-the end-to-end regression. The WDSS-II receipt adapter is included here.
-
-## Connect the tested WDSS-II launcher
-
-In `submit_wdssii_array.sh`, immediately after the successful staging
-`sbatch --parsable` call, add the following hook. Set `stage_job_id` to
-the variable that receives **that staging submission's** parsable result.
-The hook is inactive during standalone submissions and dry runs.
-
-```bash
-if [[ -n "${WOFS_WDSSII_RECEIPT:-}" ]]; then
-    "$WOFS_WDSSII_RECEIPT_PYTHON" "$WOFS_WDSSII_RECEIPT_WRITER" \
-        "$WOFS_WDSSII_RECEIPT" "$stage_job_id" "$CLOUD_ROOT" || exit 1
-fi
-```
-
-The repository adapter `ush/submit_wdssii_with_receipt.sh` invokes the
-launcher with `CDATE DOMAIN ALL` and routes its regular output to stderr.
-A missing receipt causes the controller to stop before scheduling processing.
-Inspect the submission log before retrying because the WDSS-II jobs may
-already have been submitted.
-
-## Submit the three-cycle CSP regression
-
-```bash
-bash workflow/shell/obs_radar/submit_csp_regression.sh \
-    /absolute/new/run_root \
-    /absolute/archived/NEXRAD \
-    /absolute/wdssii/submit_wdssii_array.sh \
-    "$PWD/workflow/shell/obs_radar/submit_obs_cycles.sh" \
-    /absolute/validated/run/case.conf \
-    /absolute/csp/com
-```
-
-The runner uses the 20 CSP stations and 15:00–15:30 UTC schedule. Point the
-base configuration at the tested frdd-wofs-obs-radar_OSTI-derived runtime.
-The regression exercises archive reuse, WDSS-II staging, and observation
-generation. The general YAML configuration accepts a site downloader via
-`download_command`. MRMS acquisition and processing require their own
-case-specific integration and regression.
+The WDSS-II entry in the legacy C-shell driver processes Level II scans
+and stages Velocity and ReflectivityQC by UTC date. These staged fields
+feed radial-velocity processing, including its reflectivity masking.
+The separate mosaic reflectivity routine reads the MRMS feed and supplies
+the final DBZ file. The legacy Python driver combines those operations
+inside one invocation. This scheduler layout calls the science routines
+directly and checks their outputs before advancing.

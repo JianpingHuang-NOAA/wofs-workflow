@@ -1,0 +1,4 @@
+#!/bin/bash
+set -euo pipefail
+: "${HOMEwofs:?Set HOMEwofs to the workflow root}"
+exec "$HOMEwofs/scripts/exwofs_radar_stage.sh" "$@"

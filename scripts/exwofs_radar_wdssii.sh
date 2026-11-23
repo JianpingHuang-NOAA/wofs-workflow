@@ -5,4 +5,5 @@ if [[ "${RADAR_LOAD_MODULES:-YES}" == YES ]]; then
     module use "$HOMEwofs/modulefiles"
     module load "$wofs_modulefile"
 fi
+source "$HOMEwofs/ush/load_wdssii.sh"
 exec "${RADAR_CONFIG_PYTHON:-python3}" "$HOMEwofs/ush/run_obs_radar.py" "wdssii" "$@"
