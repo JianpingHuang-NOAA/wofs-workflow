@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, mkdtemp
 
 import yaml
 
@@ -113,10 +113,14 @@ def station_wdssii(config, root, station, day, scans):
         for scan in scans:
             shutil.copy2(scan, source / scan.name)
         (work / "output").mkdir()
+        log_root = root / "logs" / "wdssii"
+        log_root.mkdir(parents=True, exist_ok=True)
+        worker_dir = Path(mkdtemp(prefix=f"{day}-{station}-", dir=log_root))
+        print(f"{station}: WDSS-II worker logs in {worker_dir}", flush=True)
         subprocess.run(
             [config["radar_python"], "-u", str(worker), day, str(source.parent),
              str(work / "output"), str(work / "output"), station[0]],
-            cwd=worker.parent, check=True,
+            cwd=worker_dir, check=True,
         )
         result = work / "output" / station
         for field in FIELDS:
@@ -170,11 +174,32 @@ def application_config(config, root, work, cycle, mrms=False):
 
 def radar_tool(config, tool, *args):
     source = absolute(config["radar_source"])
-    subprocess.run(
-        [config["radar_python"], "-I", str(Path(__file__).with_name("run_obs_radar_science.py")),
-         tool, *map(str, args)],
-        cwd=source, check=True,
-    )
+    script = Path(__file__).resolve().with_name("run_obs_radar_science.py")
+    command = [config["radar_python"], "-I"]
+    if tool == "reflectivity":
+        # Isolated Python does not add the working directory to sys.path.
+        bootstrap = """
+import runpy
+import sys
+from pathlib import Path
+
+source, script, *args = sys.argv[1:]
+source = Path(source).resolve()
+sys.path.insert(0, str(source))
+
+from wofs_radar.refl import prep_mrms
+
+writer = Path(prep_mrms.__file__).resolve()
+expected = (source / "wofs_radar/refl/prep_mrms.py").resolve()
+if writer != expected:
+    raise SystemExit(f"Unexpected MRMS writer: {writer}, expected {expected}")
+print(f"MRMS writer: {writer}", flush=True)
+sys.argv = [script, *args]
+runpy.run_path(script, run_name="__main__")
+"""
+        command.extend(["-c", bootstrap, str(source)])
+    command.extend([str(script), tool, *map(str, args)])
+    subprocess.run(command, cwd=source, check=True)
 
 
 def process_station(config, root, cycle, station, geometry):
