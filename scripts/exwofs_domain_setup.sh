@@ -116,6 +116,12 @@ if [[ "${SENDCOM}" == YES ]]; then
 
     done
 
+    radar_template="${OBS_RADAR_TEMPLATE:-${HOMEwofs}/parm/obs_radar/config.template.yaml}"
+    if [[ -e "${radar_template}" || -L "${radar_template}" || -n "${OBS_RADAR_TEMPLATE:-}" ]]; then
+        "${WOFS_PYTHON}" "${USH}/publish_obs_radar_config.py" \
+            "${radar_template}" "${COMOUT_DOMAIN}" "${CDATE}" "${region}"
+    fi
+
 else
 
     echo "SENDCOM=NO: COM publication skipped"

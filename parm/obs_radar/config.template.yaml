@@ -1,0 +1,15 @@
+HOMEwofs: /scratch3/NCEPDEV/wofs/Jianping.Huang/wofs-workflow-bash-obs-radar
+radar_python: python_env/bin/python3
+radar_source: sorc/RADAR
+radar_app_config: sorc/RADAR/app.local.cfg
+wdssii_worker: sorc/RADAR/wofs_radar/wdssii/runwdssii.py
+interval_minutes: 15
+scan_padding_minutes: 15
+domain_setup_root: /scratch3/NCEPDEV/stmp/Jianping.Huang/com/wofs/v1.0
+nexrad_root: /scratch4/NCEPDEV/stmp/Jianping.Huang/wofs/realtime/OBSGEN/NEXRAD
+mrms_feed: /scratch4/NCEPDEV/stmp/Jianping.Huang/wofs/realtime/OBSGEN/MRMS/{}
+download_command: []
+mrms_download: false
+cdate: '2026110215'
+start: '202611021500'
+end: '202611021530'

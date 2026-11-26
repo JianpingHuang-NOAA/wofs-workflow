@@ -1,4 +1,105 @@
 #!/bin/bash
+# ============================================================================
+# JWOFS_RADAR_WDSSII
+# Purpose: Convert and stage NEXRAD Level II observations.
+# An explicit case YAML may be followed by the stage-specific arguments.
+# With no arguments, resolve the domain case from the COM environment.
+# ============================================================================
+
 set -euo pipefail
+
+# OBS_RADAR J-job setup and reporting.
 : "${HOMEwofs:?Set HOMEwofs to the workflow root}"
-exec "$HOMEwofs/scripts/exwofs_radar_wdssii.sh" "$@"
+
+# OBS_RADAR application runtime defaults.
+export RADAR_CONFIG_PYTHON="${RADAR_CONFIG_PYTHON:-$HOMEwofs/python_env/bin/python3}"
+export WDSSII_HOME="${WDSSII_HOME:-${EXECwofs:-$HOMEwofs/exec}/WDSSII}"
+
+export USHwofs="${USHwofs:-$HOMEwofs/ush}"
+export PARMwofs="${PARMwofs:-$HOMEwofs/parm}"
+export EXECwofs="${EXECwofs:-$HOMEwofs/exec}"
+export FIXwofs="${FIXwofs:-$HOMEwofs/fix}"
+export PS4='+ $SECONDS + '
+
+radar_job_name=${0##*/}
+printf 'Entering %s (job %s)\n' \
+    "$radar_job_name" "${SLURM_JOB_ID:-${jobid:-interactive}}"
+date -u
+
+radar_job_finish() {
+    local status=$1
+    if ((status == 0)); then
+        printf 'JOB %s HAS COMPLETED NORMALLY.\n' "$radar_job_name"
+    else
+        printf 'ERROR: %s failed with status %s\n' "$radar_job_name" "$status" >&2
+    fi
+    date -u
+    return "$status"
+}
+trap 'radar_job_finish "$?"' EXIT
+
+if [[ "${RADAR_TRACE:-NO}" == YES ]]; then
+    set -x
+fi
+
+
+# Select the COM case before applying any J-job defaults.
+if [[ -z "${RADAR_CASE_YAML:-}" ]]; then
+    case "${1:-}" in
+        [!-]*) ;;
+        *)
+            : "${CDATE:?Export CDATE as YYYYMMDDHH to select the radar case}"
+            : "${domain:?Export domain to select the radar case}"
+            ;;
+    esac
+fi
+
+: "${HOMEwofs:?Export HOMEwofs before submission}"
+export WDSSII_HOME="${WDSSII_HOME:-${EXECwofs:-$HOMEwofs/exec}/WDSSII}"
+: "${HOMEwofs:?ERROR: HOMEwofs must be defined}"
+# Defaults for the 20261102 15Z CSP test. Honor the scheduler environment.
+export RADAR_COM_VERSION="${RADAR_COM_VERSION:-v1.0}"
+export RUN="${RUN:-wofs}"
+export domain="${domain:-CSP}"
+if [[ -z "${CDATE:-}" ]]; then
+    if [[ -n "${PDY:-}" && -n "${cyc:-}" ]]; then
+        export CDATE="${PDY}${cyc}"
+    elif [[ -z "${PDY:-}" && -z "${cyc:-}" ]]; then
+        export CDATE=2026110215
+    fi
+fi
+
+export COMROOT="${COMROOT:-/scratch3/NCEPDEV/stmp/Jianping.Huang/com}"
+source "$HOMEwofs/ush/load_obs_radar_job_env.sh" "$@"
+
+args=("$@")
+stage=wdssii
+if [[ "$stage" == download ]]; then
+    if (( $# == 1 )) && [[ "$1" == --local-inputs ]]; then
+        args=("${RADAR_CASE_YAML:?ERROR: No case YAML resolved}" --local-inputs)
+    fi
+elif (( $# == 0 )); then
+    case_yaml="${RADAR_CASE_YAML:?ERROR: No case YAML resolved}"
+    if [[ ! -s "$case_yaml" ]]; then
+        printf 'ERROR: Missing case YAML: %s\n' "$case_yaml" >&2
+        exit 1
+    fi
+    args=("$case_yaml")
+fi
+
+printf '\n%s\n' "JWOFS_RADAR_WDSSII"
+printf '%-16s %s\n' CDATE "${CDATE:-from case YAML}" \
+    DOMAIN "${domain:-from case YAML}" \
+    CASE "${args[0]:-${RADAR_CASE_YAML:-unset}}" \
+    SLURM_JOB_ID "${SLURM_JOB_ID:-direct execution}"
+
+# Grouped case runs use job-local DATA and publish their COM handoff.
+if "${RADAR_CONFIG_PYTHON:-$HOMEwofs/python_env/bin/python3}" \
+    "$HOMEwofs/ush/run_obs_radar_job_data.py" wdssii \
+    "$HOMEwofs/scripts/exwofs_radar_wdssii.sh" "${args[@]}"; then
+    printf '%s completed successfully.\n' "JWOFS_RADAR_WDSSII"
+else
+    status=$?
+    printf 'ERROR: %s failed with status %s\n' "exwofs_radar_wdssii.sh" "$status" >&2
+    exit "$status"
+fi
